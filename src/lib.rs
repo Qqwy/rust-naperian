@@ -2,6 +2,10 @@
 use sealed::sealed;
 use std::marker::PhantomData;
 
+pub trait Fin<const N: usize> {
+}
+
+
 #[sealed]
 pub trait TVec<T>: Sized {
     const LEN: usize;
@@ -15,6 +19,8 @@ pub trait TVec<T>: Sized {
             tail: self
         }
     }
+
+    fn lookup(self, index: Fin<Self::LEN>);
 }
 
 
@@ -145,6 +151,17 @@ impl<T, T2, Tail, Tail2, F, R> TVecZipWith<TVecCons<T2, Tail2>, F> for TVecCons<
         }
     }
 }
+
+pub trait Naperian<T> {
+    type Log;
+    fn lookup(self, log: Self::Log) -> T;
+    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
+}
+
+pub fn positions<T, Nap: Naperian<T, Log = T>>() -> Nap {
+    Nap::tabulate(|x| x)
+}
+
 
 #[cfg(test)]
 pub mod tests {

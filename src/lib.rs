@@ -14,10 +14,6 @@ pub trait TVec<T>: Sized {
             tail: self
         }
     }
-
-    fn replicate<F: Fn() -> T>(elem_fun: F) -> Self;
-
-    // fn vmap<U, Us: TVec<U>>(self, fun: impl Fn(T) -> U) -> Us;
 }
 
 
@@ -27,10 +23,6 @@ pub struct TVecNil;
 #[sealed]
 impl<T> TVec<T> for TVecNil {
     const LEN: usize = 0;
-
-    fn replicate<F: Fn() -> T>(_elem_fun: F) -> Self {
-        TVecNil
-    }
 }
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
@@ -42,11 +34,23 @@ pub struct TVecCons<T, Tail>{
 #[sealed]
 impl<T, Tail: TVec<T>> TVec<T> for TVecCons<T, Tail> {
     const LEN : usize = 1 + Tail::LEN;
+}
 
-    fn replicate<F: Fn() -> T>(elem_fun: F) -> Self {
+pub trait TVecReplicate<T>: TVec<T> {
+    fn replicate(elem: T) -> Self;
+}
+
+impl<T> TVecReplicate<T> for TVecNil {
+    fn replicate(_elem: T) -> Self {
+        TVecNil
+    }
+}
+
+impl<T: Clone, Tail: TVecReplicate<T>> TVecReplicate<T> for TVecCons<T, Tail> {
+    fn replicate(elem: T) -> Self {
         TVecCons {
-            head: elem_fun(),
-            tail: Tail::replicate(elem_fun)
+            head: elem.clone(),
+            tail: Tail::replicate(elem)
         }
     }
 }

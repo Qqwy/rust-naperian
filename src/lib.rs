@@ -204,13 +204,31 @@ impl<T, T2, Tail, Tail2, F, R> TVecZipWith<TVecCons<T2, Tail2>, F> for TVecCons<
 }
 
 pub trait Naperian<T> {
-    type Log;
+    type Log: Copy;
     // fn lookup(self) -> fn(Self::Log) -> Self::T;
     // fn lookup<Fun: Fn(Self::Log) -> Self::T>(self) -> Fun;
     // fn lookup(self) -> Box<dyn Fn(Self::Log) -> &Self::T>;
     fn lookup(&self, index: Self::Log) -> &T;
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
     // fn positions<Nap: Naperian<T = Self::Log>>() -> Nap;
+
+    fn pure(init_fun: impl Fn() -> T) -> Self
+    where
+        Self: Sized
+    {
+        Self::tabulate(|_pos| init_fun())
+    }
+
+    fn ap<U, F: Fn(&U) -> T, Funs: Naperian<F, Log = Self::Log>, Vals: Naperian<U, Log = Self::Log>>(funs: Funs, vals: Vals) -> Self
+        where
+        Self: Sized
+    {
+        Self::tabulate(|pos| {
+            let fun = funs.lookup(pos);
+            let val = vals.lookup(pos);
+            fun(val)
+        })
+    }
 }
 
 pub trait NaperianPos {
@@ -352,7 +370,7 @@ pub trait IsTrue {}
 impl IsTrue for B1 {}
 
 
-#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub struct Fin<N: Unsigned> {
     val: usize,
     _phantom: PhantomData<N>,

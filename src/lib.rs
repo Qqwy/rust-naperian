@@ -212,31 +212,466 @@ pub trait Naperian<T> {
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
     // fn positions<Nap: Naperian<T = Self::Log>>() -> Nap;
 
-    fn pure(init_fun: impl Fn() -> T) -> Self
-    where
-        Self: Sized
-    {
-        Self::tabulate(|_pos| init_fun())
-    }
+    // fn pure(init_fun: impl Fn() -> T) -> Self
+    // where
+    //     Self: Sized
+    // {
+    //     Self::tabulate(|_pos| init_fun())
+    // }
 
-    fn ap<U, F: Fn(&U) -> T, Funs: Naperian<F, Log = Self::Log>, Vals: Naperian<U, Log = Self::Log>>(funs: Funs, vals: Vals) -> Self
-        where
-        Self: Sized
-    {
-        Self::tabulate(|pos| {
-            let fun = funs.lookup(pos);
-            let val = vals.lookup(pos);
-            fun(val)
-        })
-    }
+    // fn ap<U, R, Vals: Naperian<U, Log = Self::Log>>(&self, vals: Vals) -> impl Naperian<R>
+    //     where
+    //     T: Fn(&U) -> R,
+    //     Self: Sized
+    // {
+    //     Self::tabulate(|pos| {
+    //         let fun = self.lookup(pos);
+    //         let val = vals.lookup(pos);
+    //         fun(val)
+    //     })
+    // }
 }
 
 pub trait NaperianPos {
     fn positions() -> Self;
 }
 
+pub unsafe trait ArrayLength2: Unsigned {
+    type ArrayType<T>;
+}
+
+unsafe impl ArrayLength2 for typenum::UTerm {
+    #[doc(hidden)]
+    type ArrayType<T> = [T; 0];
+}
+
+/// Internal type used to generate a struct of appropriate size
+#[allow(dead_code)]
+#[repr(C)]
+#[doc(hidden)]
+pub struct GArrayImplEven<T, U> {
+    parent1: U,
+    parent2: U,
+    _marker: PhantomData<T>,
+}
+
+impl<T: Clone, U: Clone> Clone for GArrayImplEven<T, U> {
+    fn clone(&self) -> GArrayImplEven<T, U> {
+        GArrayImplEven {
+            parent1: self.parent1.clone(),
+            parent2: self.parent2.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: Copy, U: Copy> Copy for GArrayImplEven<T, U> {}
+
+
+unsafe impl<N: ArrayLength2> ArrayLength2 for typenum::UInt<N, B0> {
+    #[doc(hidden)]
+    type ArrayType<T> = GArrayImplEven<T, N::ArrayType<T>>;
+}
+
+unsafe impl<N: ArrayLength2> ArrayLength2 for typenum::UInt<N, B1> {
+    #[doc(hidden)]
+    type ArrayType<T> = GArrayImplOdd<T, N::ArrayType<T>>;
+}
+
+
+/// Internal type used to generate a struct of appropriate size
+#[allow(dead_code)]
+#[repr(C)]
+#[doc(hidden)]
+pub struct GArrayImplOdd<T, U> {
+    parent1: U,
+    parent2: U,
+    data: T,
+}
+
+impl<T: Clone, U: Clone> Clone for GArrayImplOdd<T, U> {
+    fn clone(&self) -> GArrayImplOdd<T, U> {
+        GArrayImplOdd {
+            parent1: self.parent1.clone(),
+            parent2: self.parent2.clone(),
+            data: self.data.clone(),
+        }
+    }
+}
+
+impl<T: Copy, U: Copy> Copy for GArrayImplOdd<T, U> {}
+
+
+/// Struct representing a generic array - `GenericArray<T, N>` works like [T; N]
+#[allow(dead_code)]
+#[repr(transparent)]
+pub struct GArray<T, U: ArrayLength2> {
+    data: U::ArrayType<T>,
+}
+
+
+unsafe impl<T: Send, N: ArrayLength2> Send for GArray<T, N> {}
+unsafe impl<T: Sync, N: ArrayLength2> Sync for GArray<T, N> {}
+
+
+impl<T, N> core::ops::Deref for GArray<T, N>
+where
+    N: ArrayLength2,
+{
+    type Target = [T];
+
+    #[inline(always)]
+    fn deref(&self) -> &[T] {
+        unsafe { core::slice::from_raw_parts(self as *const Self as *const T, N::USIZE) }
+    }
+}
+
+impl<T, N> core::ops::DerefMut for GArray<T, N>
+where
+    N: ArrayLength2,
+{
+    #[inline(always)]
+    fn deref_mut(&mut self) -> &mut [T] {
+        unsafe { core::slice::from_raw_parts_mut(self as *mut Self as *mut T, N::USIZE) }
+    }
+}
+
+
+// pub struct Garr<T, N: Unsigned> {
+//     data: [T; N::USIZE],
+//     marker: PhantomData<N>,
+// }
+
+
 // pub fn positions<T, Nap: Naperian<T, Log = T>>() -> Nap {
 //     Nap::tabulate(|x| x)
+// }
+
+pub trait HKT<U> {
+    type Current; // Current content type; ex: for Vec<A> this would be A
+    type Target; // Type with T swapped with U; ex: for Vec<A> this would be Vec<U>
+}
+
+macro_rules! derive_hkt {
+    ($t:ident) => {
+        impl<T, U> HKT<U> for $t<T> {
+            type Current = T;
+            type Target = $t<U>;
+        }
+    }
+}
+
+derive_hkt!(Vec);
+derive_hkt!(Option);
+derive_hkt!(Box);
+
+pub trait Generic1 {
+    type I;
+    type New<Ego>;
+}
+
+
+impl<T, U, N> HKT<U> for GenericArray<T, N>
+    where
+        N: ArrayLength<T> + ArrayLength<U>
+{
+    type Current = T;
+    type Target = GenericArray<U, N>;
+}
+
+macro_rules! derive_generic1 {
+    ($t:ident) => {
+        impl<T> Generic1 for $t<T> {
+            type I = T;
+            type New<X> = $t<X>;
+        }
+    }
+}
+derive_generic1!(Vec);
+derive_generic1!(Option);
+derive_generic1!(Box);
+
+// impl<T, N> Generic1 for GenericArray<T, N>
+// where
+//     N: ArrayLength<T>,
+// {
+//     type I = T;
+//     type New<X> = GenericArray<X, N>;
+// }
+
+trait Plug<B> {
+    type R;
+}
+
+impl<A, B> Plug<B> for Option<A> {
+    type R = Option<B>;
+}
+
+impl<A, B, N> Plug<B> for GenericArray<A, N>
+    where
+    N: ArrayLength<A> + ArrayLength<B>,
+{
+    type R = GenericArray<B, N>;
+}
+
+impl<A, B, N> Plug<B> for GArray<A, N>
+where
+    N: ArrayLength2,
+{
+    type R = GArray<B, N>;
+}
+
+
+trait ApplicativeX<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f>: Plug<A> + Plug<B> + Plug<F> {
+    fn ap<>(funs: &'f <Self as Plug<F>>::R, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    where Self: Plug<A> + Plug<B> + Plug<F>;
+
+    // fn pure(x: Self::I) -> Self
+    // where Self: Generic1;
+}
+
+impl<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f> ApplicativeX<'a, 'f, A, B, F> for Option<A> {
+    // fn pure(x: <Self as Generic1>::I) -> Self {
+    //     Some(x)
+    // }
+
+    fn ap(funs: &'f <Self as Plug<F>>::R, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R {
+        match (funs, vals) {
+            (Some(f), Some(v)) => Some(f(v)),
+            (_, _) => None,
+        }
+    }
+}
+
+// impl<A, B, F: Fn(&A) -> B, N> ApplicativeX<A, B, F> for GenericArray<A, N>
+//     where
+//     N: ArrayLength<A> + ArrayLength<B> + ArrayLength<F>,
+//     Self: Plug<A> + Plug<B> + Plug<F>,
+//     <Self as Plug<A>>::R: IntoIterator<Item = A>,
+//     <Self as Plug<F>>::R: IntoIterator<Item = F>,
+// {
+//     fn ap(funs: &<Self as Plug<F>>::R, vals: &<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+//     {
+//         GenericArray::from_iter(funs.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)))
+//     }
+// }
+
+
+/// Creates an array one element at a time using a mutable iterator
+/// you can write to with `ptr::write`.
+///
+/// Increment the position while iterating to mark off created elements,
+/// which will be dropped if `into_inner` is not called.
+#[doc(hidden)]
+pub struct GArrayBuilder<T, N: ArrayLength2> {
+    array: core::mem::MaybeUninit<GArray<T, N>>,
+    position: usize,
+}
+
+impl<T, N: ArrayLength2> GArrayBuilder<T, N> {
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn new() -> GArrayBuilder<T, N> {
+        GArrayBuilder {
+            array: core::mem::MaybeUninit::uninit(),
+            position: 0,
+        }
+    }
+
+    /// Creates a mutable iterator for writing to the array using `ptr::write`.
+    ///
+    /// Increment the position value given as a mutable reference as you iterate
+    /// to mark how many elements have been created.
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn iter_position(&mut self) -> (core::slice::IterMut<T>, &mut usize) {
+        (
+            (&mut *self.array.as_mut_ptr()).iter_mut(),
+            &mut self.position,
+        )
+    }
+
+    /// When done writing (assuming all elements have been written to),
+    /// get the inner array.
+    #[doc(hidden)]
+    #[inline]
+    pub unsafe fn into_inner(self) -> GArray<T, N> {
+        let array = core::ptr::read(&self.array);
+
+        core::mem::forget(self);
+
+        array.assume_init()
+    }
+}
+
+impl<T, N: ArrayLength2> Drop for GArrayBuilder<T, N> {
+    fn drop(&mut self) {
+        if core::mem::needs_drop::<T>() {
+            unsafe {
+                for value in &mut (&mut *self.array.as_mut_ptr())[..self.position] {
+                    core::ptr::drop_in_place(value);
+                }
+            }
+        }
+    }
+}
+
+
+
+impl<T, N> FromIterator<T> for GArray<T, N>
+where
+    N: ArrayLength2,
+{
+    fn from_iter<I>(iter: I) -> GArray<T, N>
+    where
+        I: IntoIterator<Item = T>,
+    {
+        unsafe {
+            let mut destination = GArrayBuilder::new();
+
+            {
+                let (destination_iter, position) = destination.iter_position();
+
+                iter.into_iter()
+                    .zip(destination_iter)
+                    .for_each(|(src, dst)| {
+                        core::ptr::write(dst, src);
+
+                        *position += 1;
+                    });
+            }
+
+            if destination.position < N::USIZE {
+                from_iter_length_fail(destination.position, N::USIZE);
+            }
+
+            destination.into_inner()
+        }
+    }
+}
+
+#[inline(never)]
+#[cold]
+fn from_iter_length_fail(length: usize, expected: usize) -> ! {
+    panic!(
+        "GenericArray::from_iter received {} elements but expected {}",
+        length, expected
+    );
+}
+
+impl<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f, N> ApplicativeX<'a, 'f, A, B, F> for GenericArray<A, N>
+where
+    N: ArrayLength<A> + ArrayLength<B> + ArrayLength<F>,
+    Self: Plug<A> + Plug<B> + Plug<F>,
+    &'a<Self as Plug<A>>::R: IntoIterator<Item = &'a A>,
+    &'f<Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
+    <Self as Plug<B>>::R: FromIterator<B>,
+{
+    fn ap(funs: &'f <Self as Plug<F>>::R, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    {
+        FromIterator::from_iter(funs.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)))
+    }
+}
+
+impl<'a, 'f, A: 'a, B, F: Fn(&A) -> B + 'f, N> ApplicativeX<'a, 'f, A, B, F> for GArray<A, N>
+    where
+    N: ArrayLength2,
+    Self: Plug<A> + Plug<B> + Plug<F>,
+    &'a <Self as Plug<A>>::R: IntoIterator<Item = &'a A>,
+    &'f <Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
+    <GArray<A, N> as Plug<B>>::R: FromIterator<B>,
+{
+    fn ap(funs: &'f<Self as Plug<F>>::R, vals: &'a<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    {
+        FromIterator::from_iter(funs.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)))
+    }
+}
+
+
+trait Functor<U>: HKT<U> {
+    fn map<F>(&self, f: F) -> Self::Target
+        where
+        F: Fn(&Self::Current) -> U;
+}
+
+impl<T, U> Functor<U> for Option<T> {
+    fn map<F>(&self, f: F) -> Self::Target
+    where
+        F: Fn(&Self::Current) -> U {
+        match self {
+            None => None,
+            Some(value) => Some(f(value))
+        }
+    }
+}
+
+impl<T, U, N> Functor<U> for GenericArray<T, N>
+    where
+    N: ArrayLength<T> + ArrayLength<U>
+{
+    fn map<F>(&self, f: F) -> Self::Target
+    where
+        F: Fn(&Self::Current) -> U {
+        GenericArray::from_iter(self.into_iter().map(f))
+    }
+}
+
+trait Pure<U>: Functor<U> {
+    fn pure_(value: U) -> Self::Target where Self: HKT<U, Current=U>;
+}
+
+trait Apply<B>: Functor<B> {
+    fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> <Self as HKT<B>>::Target
+    where
+        Self: HKT<F>,
+        F: Fn(&<Self as HKT<B>>::Current) -> B,
+    ;
+}
+
+trait Applicative<U>: Functor<U> {
+    fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> <Self as HKT<U>>::Target
+    where
+        F: Fn(&<Self as HKT<U>>::Current) -> U,
+        Self: HKT<F>
+        ;
+}
+
+impl<T, U> Pure<U> for Option<T> {
+    fn pure_(value: U) -> Self::Target {
+        Some(value)
+    }
+}
+
+// impl<T, B> Apply<B> for Option<T> {
+//     fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> <Self as HKT<B>>::Target
+//     where
+//         Self: HKT<F>,
+//         <Self as HKT<F>>::Target: Option<F>,
+//         F: Fn(&<Self as HKT<B>>::Current) -> B, {
+//         match (self, funs) {
+//             (Some(val), Some(fun)) => Some(fun(val)),
+//             (_, _) => None,
+//         }
+//     }
+// }
+
+// impl<T, U> Applicative<U> for Option<T> {
+//     fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> Option<U>
+//     where
+//         Self: HKT<F>,
+//         F: Fn(&<Self as HKT<U>>::Current) -> U {
+//         match self {
+//             None => None,
+//             Some(val) => {
+//                 match funs {
+//                     None => None,
+//                     Some(fun) => {
+//                         Some(fun(val))
+//                     }
+//                 }
+//             }
+//         }
+//     }
 // }
 
 
@@ -571,4 +1006,24 @@ mod tests2 {
         println!("{:?}", foo);
         println!("{:?}", std::any::type_name_of_val(&foo[0]));
     }
+
+    fn plus1(x: &usize) -> usize {
+        x + 1
+    }
+
+    #[test]
+    fn functor() {
+        let arr = arr![usize; 1,2,3];
+        let res = arr.map(|x| x * 2);
+        assert_eq!(res, arr![usize; 2,4,6]);
+    }
+
+    // #[test]
+    // fn applicative() {
+    //     let arr = arr![usize; 1,2,3];
+    //     let arr2 = arr![usize; 4,5,6];
+    //     let funs = arr![fn(&usize) -> usize; plus1, plus1, plus1];
+    //     let result = funs.ap(arr);
+    //     // let result: GenericArray<usize, _> = GenericArray::pure(|| { |x: usize| {|y: usize| x + y}}).ap(arr).ap(arr2);
+        
 }

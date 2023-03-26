@@ -205,13 +205,21 @@ impl<T, T2, Tail, Tail2, F, R> TVecZipWith<TVecCons<T2, Tail2>, F> for TVecCons<
 
 pub trait Naperian<T> {
     type Log;
-    fn lookup(self, log: Self::Log) -> T;
+    // fn lookup(self) -> fn(Self::Log) -> Self::T;
+    // fn lookup<Fun: Fn(Self::Log) -> Self::T>(self) -> Fun;
+    // fn lookup(self) -> Box<dyn Fn(Self::Log) -> &Self::T>;
+    fn lookup(&self, index: Self::Log) -> &T;
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
+    // fn positions<Nap: Naperian<T = Self::Log>>() -> Nap;
 }
 
-pub fn positions<T, Nap: Naperian<T, Log = T>>() -> Nap {
-    Nap::tabulate(|x| x)
+pub trait NaperianPos {
+    fn positions() -> Self;
 }
+
+// pub fn positions<T, Nap: Naperian<T, Log = T>>() -> Nap {
+//     Nap::tabulate(|x| x)
+// }
 
 
 #[cfg(test)]
@@ -440,19 +448,29 @@ pub trait UnsignedExt: Unsigned {
         Fin::<N>::tnew::<Self>()
     }
 }
+
 impl<Index: Unsigned> UnsignedExt for Index {}
+
+pub fn fin<const VAL: usize, N: Unsigned>() -> Fin<N>
+where
+    Const<VAL>: ToUInt,
+U<VAL>: Unsigned + IsLess<N>,
+    typenum::Le<U<VAL>, N>: IsTrue,
+{
+    Fin::<N>::cnew::<VAL>()
+}
 
 /// Extension trait for GenericArray
 /// to look up one of its elements
 /// using a typenum index constant.
 /// This will reesult in a compile error for out-of-bounds access.
 pub trait Lookup<T, N: Unsigned> {
-    fn lookup(&self, index: Fin<N>) -> &T;
+    fn vlookup(&self, index: Fin<N>) -> &T;
 }
 
 impl<T, N: ArrayLength<T>> Lookup<T, N> for GenericArray<T, N>
 {
-    fn lookup(&self, index: Fin<N>) -> &T {
+    fn vlookup(&self, index: Fin<N>) -> &T {
         // TODO: Make sure a bounds check is *never* inserted here
         // as it is never needed
         &self[index.val]
@@ -475,14 +493,40 @@ impl<N: ArrayLength<Fin<N>>> Iota<N> for GenericArray<Fin<N>, N> {
     }
 }
 
-pub fn fin<const VAL: usize, N: Unsigned>() -> Fin<N>
-where
-    Const<VAL>: ToUInt,
-    U<VAL>: Unsigned + IsLess<N>,
-    typenum::Le<U<VAL>, N>: IsTrue,
-{
-    Fin::<N>::cnew::<VAL>()
+impl<T, N: ArrayLength<T> + ArrayLength<Fin<N>>> Naperian<T> for GenericArray<T, N> {
+    type Log = Fin<N>;
+    // fn lookup(self) -> Box<dyn Fn(Self::Log) -> Self::T> {
+    //     Box::new(|index: Fin<N>| { self.lookup(index) })
+    // }
+    fn lookup(&self, index: Fin<N>) -> &T {
+        &self[index.val]
+    }
+    // fn positions<Nap: Naperian<T = Self::Log>>() -> Nap {
+    //     <Self as Iota<N>>::iota()
+    // }
+    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
+        GenericArray::from_iter((0..N::USIZE).map(|pos| {
+            let pos = unsafe { Fin::new_unchecked(pos)};
+            fun(pos)
+        }))
+
+        // let positions: GenericArray<Fin<N>, N> = Iota::iota();
+        // positions.map(|x| fun(x))
+    }
+
+    // fn positions<Nap: Naperian<T = Self::Log>>() -> Nap {
+        
+    // }
 }
+
+
+impl<N: ArrayLength<Fin<N>>> NaperianPos for GenericArray<Fin<N>, N> {
+    fn positions() -> Self {
+        Self::iota()
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests2 {

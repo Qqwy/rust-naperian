@@ -1,16 +1,18 @@
 #![feature(type_name_of_val)]
 use sealed::sealed;
-use std::marker::PhantomData;
+use typenum::Unsigned;
+use typenum::consts::*;
+use typenum::{IsLess, Bit};
+use core::ops::Add;
 
-pub trait Fin<const N: usize> {
-}
-
+// TODO Make optional based on const-generics feature
+use typenum::{U, Const, ToUInt};
 
 #[sealed]
 pub trait TVec<T>: Sized {
-    const LEN: usize;
+    type Len: Unsigned;
     fn len(&self) -> usize {
-        Self::LEN
+        Self::Len::to_usize()
     }
 
     fn prepend(self, h: T) -> TVecCons<T, Self> {
@@ -20,16 +22,48 @@ pub trait TVec<T>: Sized {
         }
     }
 
-    fn lookup(self, index: Fin<Self::LEN>);
+    // fn lookup<Index: Unsigned + IsLess<Self::Len> + typenum::Cmp<typenum::UTerm>>(self) -> T;
 }
 
+// pub trait Lookup<T, Index>: TVec<T> {
+//     fn lookup(self) -> T;
+// }
+
+// impl<T, Tail, Index> Lookup<T, Index> for TVecCons<T, Tail>
+// where
+//     Tail: TVec<T>,
+//     <Tail as TVec<T>>::Len: core::ops::Add<B1>,
+//     <<Tail as TVec<T>>::Len as Add<typenum::B1>>::Output: Unsigned,
+// {
+//     fn lookup(self) -> T {
+//         self.head
+//     }
+// }
+
+// impl<T, Tail, Index> Lookup<T, Index> for TVecCons<T, Tail>
+// where
+//     Index: Unsigned + IsLess<Self::Len>,
+//     Tail: TVec<T>,
+//     <Tail as TVec<T>>::Len: core::ops::Add<B1>,
+//     <<Tail as TVec<T>>::Len as Add<typenum::B1>>::Output: Unsigned,
+// {
+//     fn lookup(self) -> T {
+//         // use typenum::UTerm;
+//         // if <op!(Index == UTerm)>::to_bool() {
+            
+//         // }
+//     }
+// }
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
 pub struct TVecNil;
 
 #[sealed]
 impl<T> TVec<T> for TVecNil {
-    const LEN: usize = 0;
+    type Len = typenum::U0;
+    // fn lookup<Index: IsLess<Self::Len>>(self) -> T {
+    //     unreachable!()
+    // }
 }
 
 #[derive(PartialEq, Debug, Eq, Clone, Copy, PartialOrd, Ord, Hash)]
@@ -39,8 +73,20 @@ pub struct TVecCons<T, Tail>{
 }
 
 #[sealed]
-impl<T, Tail: TVec<T>> TVec<T> for TVecCons<T, Tail> {
-    const LEN : usize = 1 + Tail::LEN;
+impl<T, Tail: TVec<T>> TVec<T> for TVecCons<T, Tail>
+where
+    <Tail as TVec<T>>::Len: core::ops::Add<B1>,
+    <<Tail as TVec<T>>::Len as Add<typenum::B1>>::Output: Unsigned,
+{
+    type Len = typenum::Add1<Tail::Len>;
+
+    // fn lookup<Index: Unsigned + IsLess<Self::Len> + typenum::Cmp<typenum::UTerm>>(self) -> T {
+    //     if <op!(cmp(Index, U0) == typenum::Greater)>::to_bool() {
+    //         todo!()
+    //     } else {
+    //         todo!()
+    //     }
+    // }
 }
 
 pub trait TVecReplicate<T>: TVec<T> {
@@ -53,7 +99,11 @@ impl<T> TVecReplicate<T> for TVecNil {
     }
 }
 
-impl<T: Clone, Tail: TVecReplicate<T>> TVecReplicate<T> for TVecCons<T, Tail> {
+impl<T: Clone, Tail: TVecReplicate<T>> TVecReplicate<T> for TVecCons<T, Tail>
+where
+    <Tail as TVec<T>>::Len: core::ops::Add<B1>,
+    <<Tail as TVec<T>>::Len as Add<typenum::B1>>::Output: Unsigned,
+{
     fn replicate(elem: T) -> Self {
         TVecCons {
             head: elem.clone(),
@@ -285,3 +335,137 @@ pub mod tests {
 //         assert_eq!(result, 4);
 //     }
 // }
+
+use core::marker::PhantomData;
+use generic_array::{GenericArray, ArrayLength};
+
+pub trait IsTrue {}
+impl IsTrue for B1 {}
+
+
+
+pub struct Fin<N: Unsigned> {
+    val: usize,
+    _phantom: PhantomData<N>,
+}
+
+
+impl<N: Unsigned> Fin<N> {
+    /// Creates a new Fin from a usize. Fallible, checked at runtime.
+    ///
+    /// A BoundError is returned when the usize is larger than the maximum bound (`N`).
+    pub const fn new(val: usize) -> Result<Self, BoundError<N>> {
+        if val < N::USIZE {
+            Ok(Fin{val, _phantom: PhantomData })
+        } else {
+            Err(BoundError::<N>::new())
+        }
+    }
+
+    /// Creates a new Fin from an unsigned typenum.
+    ///
+    /// Outcome is always valid as too large values result in a compile error.
+    pub const fn tnew<Val>() -> Self
+        where
+        Val: Unsigned + IsLess<N>,
+        typenum::Le<Val, N>: IsTrue,
+    {
+        Fin{val: Val::USIZE, _phantom: PhantomData}
+    }
+
+    /// Creates a new Fin from an compile-time constant usize.
+    ///
+    /// Outcome is always valid as too large values result in a compile error.
+    pub const fn cnew<const VAL: usize>() -> Self
+        where
+        Const<VAL>: ToUInt,
+        U<VAL>: Unsigned + IsLess<N>,
+        typenum::Le<U<VAL>, N>: IsTrue,
+    {
+        Fin{val: VAL, _phantom: PhantomData}
+    }
+
+    pub const fn bound() -> usize {
+        N::USIZE
+    }
+}
+
+#[derive(Debug)]
+pub struct BoundError<N: Unsigned> {
+    _phantom: PhantomData<N>,
+}
+
+impl<N: Unsigned> BoundError<N> {
+    pub const fn new() -> Self {
+        Self {_phantom: PhantomData}
+    }
+}
+
+impl<N: Unsigned> TryInto<Fin<N>> for usize {
+    type Error = BoundError<N>;
+    fn try_into(self) -> Result<Fin<N>, Self::Error> {
+        Fin::<N>::new(self)
+    }
+}
+
+pub trait UnsignedExt: Unsigned {
+    fn fin<N: Unsigned>() -> Fin<N>
+    where
+        Self: Unsigned + IsLess<N>,
+        typenum::Le<Self, N>: IsTrue,
+    {
+        Fin::<N>::tnew::<Self>()
+    }
+}
+impl<Index: Unsigned> UnsignedExt for Index {}
+
+/// Extension trait for GenericArray
+/// to look up one of its elements
+/// using a typenum index constant.
+/// This will reesult in a compile error for out-of-bounds access.
+pub trait Lookup<T, N: Unsigned> {
+    fn lookup(&self, index: Fin<N>) -> &T;
+}
+
+impl<T, N: ArrayLength<T>> Lookup<T, N> for GenericArray<T, N>
+{
+    fn lookup(&self, index: Fin<N>) -> &T {
+        &self[index.val]
+    }
+}
+
+pub trait Iota<N> {
+    fn iota() -> Self;
+}
+
+impl<N: ArrayLength<N>> Iota<N> for GenericArray<N, N> {
+    fn iota() -> Self {
+        let garr: GenericArray<N, N> = Default::default();
+        garr
+    }
+}
+
+pub fn fin<const VAL: usize, N: Unsigned>() -> Fin<N>
+where
+    Const<VAL>: ToUInt,
+    U<VAL>: Unsigned + IsLess<N>,
+    typenum::Le<U<VAL>, N>: IsTrue,
+{
+    Fin::<N>::cnew::<VAL>()
+}
+
+#[cfg(test)]
+mod tests2 {
+    use super::*;
+    use generic_array::arr;
+    use typenum::U;
+    #[test]
+    fn compile_time_lookup_bounds() {
+        let arr = arr![usize; 1, 2, 3];
+        let val = arr.lookup(0.try_into().unwrap());
+        let val2 = arr.lookup(U::<0>::fin());
+        let idx = Fin::cnew::<0>();// fin::<2, _>();
+        let val3 = arr.lookup(idx);
+        println!("{:?}", val2);
+    }
+}

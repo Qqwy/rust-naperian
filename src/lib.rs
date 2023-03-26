@@ -423,7 +423,7 @@ where
 
 
 trait Apply<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f>: Plug<A> + Plug<B> + Plug<F> {
-    fn ap(self: &'f Self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
     where Self: Plug<A> + Plug<B> + Plug<F>;
 
     // fn pure(x: Self::I) -> Self
@@ -435,7 +435,7 @@ impl<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f> Apply<'a, 'f, A, B, F> for Option
     //     Some(x)
     // }
 
-    fn ap(self: &'f Self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R {
+    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R {
         match (self, vals) {
             (Some(f), Some(v)) => Some(f(v)),
             (_, _) => None,
@@ -567,7 +567,7 @@ where
     &'f<Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
     <Self as Plug<B>>::R: FromIterator<B>,
 {
-    fn ap(self: &'f Self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
     {
         self.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)).collect()
     }
@@ -581,7 +581,7 @@ impl<'a, 'f, A: 'a, B, F: Fn(&A) -> B + 'f, N> Apply<'a, 'f, A, B, F> for GArray
     &'f <Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
     <Self as Plug<B>>::R: FromIterator<B>,
 {
-    fn ap(self: &'f Self, vals: &'a<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    fn ap(&'f self, vals: &'a<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
     {
         self.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)).collect()
     }
@@ -616,17 +616,9 @@ impl<T, U, N> Functor<U> for GenericArray<T, N>
     }
 }
 
+/// Also known as 'Pointed'
 trait Pure<U>: Functor<U> {
     fn pure(value: U) -> Self::Target where Self: HKT<U, Current=U>;
-}
-
-
-trait Applicative<U>: Functor<U> {
-    fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> <Self as HKT<U>>::Target
-    where
-        F: Fn(&<Self as HKT<U>>::Current) -> U,
-        Self: HKT<F>
-        ;
 }
 
 impl<T, U> Pure<U> for Option<T> {
@@ -634,39 +626,6 @@ impl<T, U> Pure<U> for Option<T> {
         Some(value)
     }
 }
-
-// impl<T, B> Apply<B> for Option<T> {
-//     fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> <Self as HKT<B>>::Target
-//     where
-//         Self: HKT<F>,
-//         <Self as HKT<F>>::Target: Option<F>,
-//         F: Fn(&<Self as HKT<B>>::Current) -> B, {
-//         match (self, funs) {
-//             (Some(val), Some(fun)) => Some(fun(val)),
-//             (_, _) => None,
-//         }
-//     }
-// }
-
-// impl<T, U> Applicative<U> for Option<T> {
-//     fn ap<F>(&self, funs: <Self as HKT<F>>::Target) -> Option<U>
-//     where
-//         Self: HKT<F>,
-//         F: Fn(&<Self as HKT<U>>::Current) -> U {
-//         match self {
-//             None => None,
-//             Some(val) => {
-//                 match funs {
-//                     None => None,
-//                     Some(fun) => {
-//                         Some(fun(val))
-//                     }
-//                 }
-//             }
-//         }
-//     }
-// }
-
 
 impl<T, U: Clone, N: ArrayLength<T> + ArrayLength<U>> Pure<U> for GenericArray<T, N> {
     fn pure(value: U) -> Self::Target {
@@ -1028,6 +987,5 @@ mod tests2 {
         let fun = |x| { move |y| x + y };
         let result: GenericArray<usize, _> = GenericArray::pure(&fun).ap(&arr).ap(&arr2);
         println!("{:?}", result);
-        
     }
 }

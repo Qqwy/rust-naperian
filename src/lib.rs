@@ -4,6 +4,7 @@ use typenum::Unsigned;
 use typenum::consts::*;
 use typenum::{IsLess, Bit};
 use core::ops::Add;
+use std::fmt::Debug;
 
 // TODO Make optional based on const-generics feature
 use typenum::{U, Const, ToUInt};
@@ -343,10 +344,19 @@ pub trait IsTrue {}
 impl IsTrue for B1 {}
 
 
-
+#[derive(Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Fin<N: Unsigned> {
     val: usize,
     _phantom: PhantomData<N>,
+}
+
+impl<N: Unsigned> core::fmt::Debug for Fin<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = format!("Fin<U{}>", N::USIZE);
+        f.debug_tuple(&name)
+            .field(&self.val)
+            .finish()
+    }
 }
 
 
@@ -354,6 +364,7 @@ impl<N: Unsigned> Fin<N> {
     /// Creates a new Fin from a usize. Fallible, checked at runtime.
     ///
     /// A BoundError is returned when the usize is larger than the maximum bound (`N`).
+    #[inline(always)]
     pub const fn new(val: usize) -> Result<Self, BoundError<N>> {
         if val < N::USIZE {
             Ok(Fin{val, _phantom: PhantomData })
@@ -362,9 +373,18 @@ impl<N: Unsigned> Fin<N> {
         }
     }
 
+    /// Creates a new Fin from a usize.
+    ///
+    /// # Safety
+    /// The caller is responsible for making sure that `val` is smaller than `N::USIZE`.
+    pub unsafe fn new_unchecked(val: usize) -> Self {
+        Fin{val, _phantom: PhantomData}
+    }
+
     /// Creates a new Fin from an unsigned typenum.
     ///
     /// Outcome is always valid as too large values result in a compile error.
+    #[inline(always)]
     pub const fn tnew<Val>() -> Self
         where
         Val: Unsigned + IsLess<N>,
@@ -376,6 +396,7 @@ impl<N: Unsigned> Fin<N> {
     /// Creates a new Fin from an compile-time constant usize.
     ///
     /// Outcome is always valid as too large values result in a compile error.
+    #[inline(always)]
     pub const fn cnew<const VAL: usize>() -> Self
         where
         Const<VAL>: ToUInt,
@@ -385,6 +406,7 @@ impl<N: Unsigned> Fin<N> {
         Fin{val: VAL, _phantom: PhantomData}
     }
 
+    #[inline(always)]
     pub const fn bound() -> usize {
         N::USIZE
     }
@@ -409,6 +431,7 @@ impl<N: Unsigned> TryInto<Fin<N>> for usize {
 }
 
 pub trait UnsignedExt: Unsigned {
+    #[inline(always)]
     fn fin<N: Unsigned>() -> Fin<N>
     where
         Self: Unsigned + IsLess<N>,
@@ -430,6 +453,8 @@ pub trait Lookup<T, N: Unsigned> {
 impl<T, N: ArrayLength<T>> Lookup<T, N> for GenericArray<T, N>
 {
     fn lookup(&self, index: Fin<N>) -> &T {
+        // TODO: Make sure a bounds check is *never* inserted here
+        // as it is never needed
         &self[index.val]
     }
 }
@@ -438,10 +463,15 @@ pub trait Iota<N> {
     fn iota() -> Self;
 }
 
-impl<N: ArrayLength<N>> Iota<N> for GenericArray<N, N> {
+impl<N: ArrayLength<Fin<N>>> Iota<N> for GenericArray<Fin<N>, N> {
     fn iota() -> Self {
-        let garr: GenericArray<N, N> = Default::default();
-        garr
+        GenericArray::from_iter((0..N::USIZE).map(|pos| unsafe { Fin::new_unchecked(pos)}))
+        // let mut garr: GenericArray<Fin<N>, N> = Default::default();
+        // for pos in 0..N::USIZE {
+        //     // Safety: index is always is smaller than GenericArray's bounds
+        //     garr[pos] = unsafe { Fin::new_unchecked(pos) };
+        // }
+        // garr
     }
 }
 
@@ -462,10 +492,21 @@ mod tests2 {
     #[test]
     fn compile_time_lookup_bounds() {
         let arr = arr![usize; 1, 2, 3];
-        let val = arr.lookup(0.try_into().unwrap());
+        let val1 = arr.lookup(0.try_into().unwrap());
+        println!("{:?}", val1);
         let val2 = arr.lookup(U::<0>::fin());
+        println!("{:?}", val2);
         let idx = Fin::cnew::<0>();// fin::<2, _>();
         let val3 = arr.lookup(idx);
-        println!("{:?}", val2);
+        println!("{:?}", val3);
+        assert_eq!(val1, val2);
+        assert_eq!(val1, val3);
+    }
+
+    #[test]
+    fn iota() {
+        let foo = GenericArray::<_, U3>::iota();
+        println!("{:?}", foo);
+        println!("{:?}", std::any::type_name_of_val(&foo[0]));
     }
 }

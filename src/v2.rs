@@ -325,7 +325,13 @@ pub trait Naperian<T>: Mappable<T> {
     /// In the future, this might be improved
     /// (Once the feature `#![feature(return_position_impl_trait_in_trait)]` is stabilized,
     /// we could write this as `fn lookup_<'a>(&'a self) -> impl Fn(Self::Log) -> &'a T;`.)
-    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a>;
+    ///
+    /// The default implementation is probably suitable for all situations.
+    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
+        Box::new(|index| {
+            self.lookup(index)
+        })
+    }
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
     fn positions() -> Self::Containing<Self::Log>;
 }
@@ -452,14 +458,6 @@ impl<T> Naperian<T> for Pair<T> {
             true => &self.1,
         }
     }
-    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
-        Box::new(|index| {
-            match index {
-                false => &self.0,
-                true => &self.1,
-            }
-        })
-    }
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
         Pair(fun(false), fun(true))
     }
@@ -473,11 +471,6 @@ impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N> {
     type Log = Fin<N>;
     fn lookup(&self, index: Self::Log) -> &T {
         &self[index.val]
-    }
-    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
-        Box::new(|index| {
-            &self[index.val]
-        })
     }
     fn positions() -> Self::Containing<Self::Log> {
         GenericArray::generate(|pos| {
@@ -494,12 +487,17 @@ impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N> {
     }
 }
 
+/// Transpose a F<G<A>> into G<F<A>> provided both F and G implement [`Naperian`].
+/// (and A: [`Clone`] since we need to copy a bunch of A's around.)
+///
+/// There is no need to implement this trait manually since there is a blanket implementation
+/// for all types implementing Naperian.
 pub trait NaperianTranspose<G, A: Clone>
     where
     Self: Naperian<G>,
-    G: Naperian<A, Log = Self::Log>,
+    G: Naperian<A>,
     Self::Containing<A>: Naperian<A, Log = Self::Log>,
-    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = Self::Log>,
+    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
 {
     fn transpose(&self) -> G::Containing<Self::Containing<A>> {
         Naperian::tabulate(|x| {
@@ -507,5 +505,27 @@ pub trait NaperianTranspose<G, A: Clone>
                 self.lookup(y).lookup(x).clone()
             })
         })
+    }
+}
+
+impl<G, A: Clone, Nap: ?Sized + Naperian<G>> NaperianTranspose<G, A> for Nap
+where
+    G: Naperian<A>,
+    Self::Containing<A>: Naperian<A, Log = Self::Log>,
+    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
+{}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use generic_array::arr;
+    #[test]
+    fn transpose() {
+        let v123 = arr![usize; 1,2,3];
+        let v456 = arr![usize; 4,5,6];
+        let three_by_two: GenericArray<GenericArray<usize, U3>, U2> = arr![_;v123, v456];
+        println!("{:?}", three_by_two);
+        let two_by_three = three_by_two.transpose();
+        println!("{:?}", two_by_three);
     }
 }

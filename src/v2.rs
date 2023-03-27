@@ -545,6 +545,30 @@ where
     }
 }
 
+trait ConcretePair<T> {
+    fn reify(pair: Pair<T>) -> Self;
+}
+impl<T> ConcretePair<T> for Pair<T> {
+    fn reify(pair: Pair<T>) -> Self {
+        pair
+    }
+}
+
+impl<G, A, B: Clone> Traversable<G, A, B> for Pair<A>
+where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Mappable2<B, Self::Containing<B>>+ Container<Elem=B, Containing<B> = G>,
+    Self::Containing<B>: ConcretePair<B>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>> {
+        fun(&self.0).map2(&fun(&self.1), &|one: &B, two: &B| {
+            let pair = Pair(one.clone(), two.clone());
+            ConcretePair::reify(pair)
+        })
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -557,5 +581,9 @@ mod tests {
         println!("{:?}", three_by_two);
         let two_by_three = three_by_two.transpose();
         println!("{:?}", two_by_three);
+    }
+
+    #[test]
+    fn traversable() {
     }
 }

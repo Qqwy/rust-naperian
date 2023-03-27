@@ -315,8 +315,8 @@ impl<A, U, N: ArrayLength> Mappable3<A, U> for GenericArray<A, N> {
     }
 }
 
-pub trait Naperian<T>: Container {
-    type Log;
+pub trait Naperian<T>: Mappable<T> {
+    type Log: Copy;
     fn lookup(&self, index: Self::Log) -> &T;
     /// Follows the paper more closely.
     /// Unfortunately,
@@ -490,6 +490,22 @@ impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N> {
             // SAFETY: pos is in range [0..N)
             let fin = unsafe { Fin::new_unchecked(pos) };
             fun(fin)
+        })
+    }
+}
+
+pub trait NaperianTranspose<G, A: Clone>
+    where
+    Self: Naperian<G>,
+    G: Naperian<A, Log = Self::Log>,
+    Self::Containing<A>: Naperian<A, Log = Self::Log>,
+    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = Self::Log>,
+{
+    fn transpose(&self) -> G::Containing<Self::Containing<A>> {
+        Naperian::tabulate(|x| {
+            Naperian::tabulate(|y| {
+                self.lookup(y).lookup(x).clone()
+            })
         })
     }
 }

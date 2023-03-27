@@ -47,6 +47,7 @@ unsafe impl<T> Container for Box<T> {
 }
 
 /// The simple example type from the Naperian paper.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pair<T>(T, T);
 
 unsafe impl<T> Container for Pair<T> {
@@ -548,6 +549,7 @@ where
 trait ConcretePair<T> {
     fn reify(pair: Pair<T>) -> Self;
 }
+
 impl<T> ConcretePair<T> for Pair<T> {
     fn reify(pair: Pair<T>) -> Self {
         pair
@@ -569,6 +571,74 @@ where
 }
 
 
+/// Example from the paper
+/// Also thanks to the 'monadic' crate for the translation of the State datatype to Rust
+pub struct State<'a, S, A> { 
+    pub run_state: Box<dyn 'a + Fn(S) -> (A, S)>,
+}
+
+impl<'a, S, A> State<'a, S, A> {
+    /// Given an initial_state,
+    /// runs the contained state-transition-function to completion.
+    /// returning the final outcome `A` and the end state `S`.
+    fn run(&self, initial_state: S) -> (A, S) {
+        (*self.run_state)(initial_state)
+    }
+
+    /// Variant of [`State::run`] that discards the resulting state,
+    /// only returning the final outcome `A`.
+    fn exec(&self, initial_state: S) -> A {
+        self.run(initial_state).0
+    }
+}
+
+unsafe impl<'a, S, A> Container for State<'a, S, A> {
+    type Elem = A;
+    type Containing<X> = State<'a, S, X>;
+}
+
+impl<'a, S: 'a, A: Clone + 'a> New<A> for State<'a, S, A> {
+    fn new(elem_val: A) -> Self {
+        State { run_state: Box::new( move |state: S| (elem_val.clone(), state))}
+    }
+}
+
+/// Behaves like Mappable but types that need restricted lifetime bounds cannot implement the normal Mappable
+pub trait MappableWithLifetime<'a, U>: Container {
+    fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U>;
+}
+
+impl<'a, U, S, A> MappableWithLifetime<'a, U> for State<'a, S, A> {
+    fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U> {
+        let boxed_fun = Box::new(fun);
+        State { run_state: Box::new( move |state: S| {
+            let (a, s) = self.run(state);
+            let b = boxed_fun(&a);
+            (b, s)
+        })}
+    }
+}
+
+
+/// Behaves like Apply but types that need restricted lifetime bounds cannot implement the normal Apply
+pub trait ApplyWithLifetime<'a, A, B, F: Fn(&A) -> B>: Container
+{
+    fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B>;
+}
+
+impl<'a, A: 'a, B: 'a, F: 'a, S> ApplyWithLifetime<'a, A, B, F> for State<'a, S, F>
+where
+    F: Fn(&A) -> B,
+{
+    fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B> {
+        State { run_state: Box::new(|s0| {
+            let (val, s1) = vals.run(s0);
+            let (fun, s2) = self.run(s1);
+            (fun(&val), s2)
+        })}
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -581,9 +651,20 @@ mod tests {
         println!("{:?}", three_by_two);
         let two_by_three = three_by_two.transpose();
         println!("{:?}", two_by_three);
+        assert_eq!(two_by_three, arr![_; arr![usize; 1, 4], arr![usize; 2, 5], arr![usize; 3, 6]]);
+
+        let pair_of_vecs = Pair(arr![i32; 1,2,3], arr![i32; 10, 20, 30]);
+        let vec_of_pairs = pair_of_vecs.transpose();
+        println!("{:?}", vec_of_pairs);
+        assert_eq!(vec_of_pairs, arr![_;Pair(1, 10), Pair(2, 20), Pair(3, 30)]);
     }
 
     #[test]
     fn traversable() {
+        let pair = Pair(10, 20);
+        // println!("{:?}", pair);
+        // let pair_of_vecs = Pair(arr![usize; 1,2,3], arr![usize; 10, 20, 30]);
+        // let transposed = pair_of_vecs.transpose();
+        // println!("{:?}", transposed);
     }
 }

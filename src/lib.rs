@@ -399,7 +399,7 @@ derive_generic1!(Box);
 //     type New<X> = GenericArray<X, N>;
 // }
 
-trait Plug<B> {
+pub trait Plug<B> {
     type R;
 }
 
@@ -422,26 +422,82 @@ where
 }
 
 
-trait Apply<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f>: Plug<A> + Plug<B> + Plug<F> {
-    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+pub trait Apply<A, B, F: Fn(&A) -> B> 
+    where
+    Self: Plug<A> + Plug<B> + Plug<F> // The implementing type must be a container type for which A, B and F are valid element types
+{
+    fn ap(&self, vals: &<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
     where Self: Plug<A> + Plug<B> + Plug<F>;
-
-    // fn pure(x: Self::I) -> Self
-    // where Self: Generic1;
 }
 
-impl<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f> Apply<'a, 'f, A, B, F> for Option<F> {
-    // fn pure(x: <Self as Generic1>::I) -> Self {
-    //     Some(x)
-    // }
-
-    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R {
+impl<A, B, F: Fn(&A) -> B> Apply<A, B, F> for Option<F> {
+    fn ap(&self, vals: &<Self as Plug<A>>::R) -> <Self as Plug<B>>::R {
         match (self, vals) {
             (Some(f), Some(v)) => Some(f(v)),
             (_, _) => None,
         }
     }
 }
+
+pub trait Applicative<'a, 'f, A: 'a, B: 'a, C>: Plug<A> + Plug<B> + Plug<C> {
+    fn pure(val: A) -> <Self as Plug<A>>::R;
+
+    fn map2(fun: &'f impl Fn(&'a A, &'a B) -> C, lhs: &'a <Self as Plug<A>>::R, rhs: &'a <Self as Plug<B>>::R) -> <Self as Plug<C>>::R;
+    // fn map2<C, F2: Fn(&'a A, &'a B) -> C + 'f, FHelper: Fn(&'a B) -> C + 'f>(fun: &'f F2, lhs: &'a <Self as Plug<A>>::R, rhs: &'a <Self as Plug<B>>::R) -> <<Self as Plug<B>>::R as Plug<C>>::R
+    //     where
+    //     Self: Sized + Plug<C> + Plug<F2> + Plug<FHelper>,
+    //     <Self as Plug<B>>::R: Plug<C>,
+    //     // <Self as Plug<B>>::R: Apply<'a, 'f, B, C, FHelper>,
+    // {
+    //     let zero = Self::pure(|left: &'a A| { move |right: &'a B| { fun(left, right) }});
+    //     let one = zero.ap(lhs);
+    //     one.ap(rhs)
+    // }
+}
+
+use generic_array::sequence::GenericSequence;
+
+impl<'a, 'f, A: 'a + Clone, B: 'a, N, C> Applicative<'a, 'f, A, B, C> for GenericArray<A, N>
+    where
+    N:  ArrayLength<A> + ArrayLength<B> + ArrayLength<C>,
+    <GenericArray<A, N> as Plug<A>>::R: GenericSequence<A, Sequence = <GenericArray<A, N> as Plug<A>>::R>,
+    <GenericArray<A, N> as Plug<C>>::R: FromIterator<C>,
+{
+    fn pure(val: A) -> <Self as Plug<A>>::R where Self: Plug<A> {
+        <Self as Plug<A>>::R::generate(|_pos| {
+            val.clone()
+        })
+    }
+
+    fn map2(fun: &'f impl Fn(&'a A, &'a B) -> C, lhs: &'a <Self as Plug<A>>::R, rhs: &'a <Self as Plug<B>>::R) -> <Self as Plug<C>>::R
+    {
+        <Self as Plug<C>>::R::generate(|pos| {
+            let left = &lhs[pos];
+            let right = &rhs[pos];
+            fun(left, right)
+        })
+    }
+}
+
+// fn crazy<A, B, R, FR1, FR2>(fun: impl Fn(&A, &B) -> R) -> impl Fn(&A) -> (impl Fn(&B) -> R)
+//     where
+//     FR2: Fn(&B) -> R,
+//     FR1: Fn(&A) -> FR2,
+// {
+//     |left| {
+//         |right| {
+//             fun(left, right)
+//         }
+//     }
+// }
+
+// fn crazy<'a, A: 'a , B: 'a, R, FHelper2: Fn(&B) -> R, FHelper: Fn(&A) -> FHelper2>(fun: impl Fn(&'a A, &'a B) -> R) -> impl Fn(&'a A) -> FHelper2 {
+//     |left: &A| {
+//         |right: &B| {
+//             fun(left, right)
+//         }
+//     }
+// }
 
 // impl<A, B, F: Fn(&A) -> B, N> Apply<A, B, F> for GenericArray<A, N>
 //     where
@@ -559,36 +615,23 @@ fn from_iter_length_fail(length: usize, expected: usize) -> ! {
     );
 }
 
-impl<'a, 'f, A: 'a, B, F: Fn(&'a A) -> B + 'f, N> Apply<'a, 'f, A, B, F> for GenericArray<F, N>
+impl<A, B, F: Fn(&A) -> B, N> Apply<A, B, F> for GenericArray<F, N>
 where
     N: ArrayLength<A> + ArrayLength<B> + ArrayLength<F>,
-    Self: Plug<A> + Plug<B> + Plug<F>,
-    &'a<Self as Plug<A>>::R: IntoIterator<Item = &'a A> + 'a,
-    &'f<Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
-    <Self as Plug<B>>::R: FromIterator<B>,
+    <Self as Plug<A>>::R: core::ops::Deref<Target = [A]>, // So we can index into vals
+    <Self as Plug<B>>::R: GenericSequence<B, Sequence = <Self as Plug<B>>::R>, // So we can build the resulting GenericArray
 {
-    fn ap(&'f self, vals: &'a <Self as Plug<A>>::R) -> <Self as Plug<B>>::R
+    fn ap(&self, vals: &<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
     {
-        self.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)).collect()
+        <Self as Plug<B>>::R::generate(|pos| {
+            let fun = &self[pos];
+            let val = &vals[pos];
+            fun(val)
+        })
     }
 }
 
-impl<'a, 'f, A: 'a, B, F: Fn(&A) -> B + 'f, N> Apply<'a, 'f, A, B, F> for GArray<F, N>
-    where
-    N: ArrayLength2,
-    Self: Plug<A> + Plug<B> + Plug<F>,
-    &'a <Self as Plug<A>>::R: IntoIterator<Item = &'a A> + 'a,
-    &'f <Self as Plug<F>>::R: IntoIterator<Item = &'f F> + 'f,
-    <Self as Plug<B>>::R: FromIterator<B>,
-{
-    fn ap(&'f self, vals: &'a<Self as Plug<A>>::R) -> <Self as Plug<B>>::R
-    {
-        self.into_iter().zip(vals.into_iter()).map(|(f, v)| f(&v)).collect()
-    }
-}
-
-
-trait Functor<U>: HKT<U> {
+pub trait Functor<U>: HKT<U> {
     fn map<F>(&self, f: F) -> Self::Target
         where
         F: Fn(&Self::Current) -> U;
@@ -616,22 +659,22 @@ impl<T, U, N> Functor<U> for GenericArray<T, N>
     }
 }
 
-/// Also known as 'Pointed'
-trait Pure<U>: Functor<U> {
-    fn pure(value: U) -> Self::Target where Self: HKT<U, Current=U>;
-}
+// /// Also known as 'Pointed'
+// pub trait Pure<U>: Functor<U> {
+//     fn pure(value: U) -> Self::Target where Self: HKT<U, Current=U>;
+// }
 
-impl<T, U> Pure<U> for Option<T> {
-    fn pure(value: U) -> Self::Target {
-        Some(value)
-    }
-}
+// impl<T, U> Pure<U> for Option<T> {
+//     fn pure(value: U) -> Self::Target {
+//         Some(value)
+//     }
+// }
 
-impl<T, U: Clone, N: ArrayLength<T> + ArrayLength<U>> Pure<U> for GenericArray<T, N> {
-    fn pure(value: U) -> Self::Target {
-        (0..N::USIZE).map(|_| value.clone()).collect()
-    }
-}
+// impl<T, U: Clone, N: ArrayLength<T> + ArrayLength<U>> Pure<U> for GenericArray<T, N> {
+//     fn pure(value: U) -> Self::Target {
+//         (0..N::USIZE).map(|_| value.clone()).collect()
+//     }
+// }
 
 #[cfg(test)]
 pub mod tests {
@@ -984,8 +1027,9 @@ mod tests2 {
         let result = funs.ap(&arr);
         println!("{:?}", result);
         assert_eq!(result, arr![usize; 2,3,4]);
-        let fun = |x| { move |y| x + y };
-        let result: GenericArray<usize, _> = GenericArray::pure(&fun).ap(&arr).ap(&arr2);
+        // let fun = |x| { move |y| x + y };
+        let plus = |x, y| x + y;
+        let result: GenericArray<usize, _> = GenericArray::map2(&plus, &arr, &arr2); // GenericArray::pure(&fun).ap(&arr).ap(&arr2);
         println!("{:?}", result);
     }
 }

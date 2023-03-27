@@ -523,9 +523,41 @@ mod tests {
     fn transpose() {
         let v123 = arr![usize; 1,2,3];
         let v456 = arr![usize; 4,5,6];
-        let three_by_two: GenericArray<GenericArray<usize, U3>, U2> = arr![_;v123, v456];
+        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![_;v123, v456];
         println!("{:?}", three_by_two);
         let two_by_three = three_by_two.transpose();
         println!("{:?}", two_by_three);
+    }
+}
+
+pub trait Traversable<G, A, B>
+    where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
+    G::Containing<Self::Containing<B>>: New<Self::Containing<B>>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
+}
+
+impl<G, A, B: Clone> Traversable<G, A, B> for Option<A>
+where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
+    Self::Containing<B>: New<B>,
+    G::Containing<Self::Containing<B>>: New<Self::Containing<B>>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Self::Containing<B>> {
+        match self {
+            None => {
+                New::new(None)
+            },
+            Some(val) => {
+                let thing = fun(val);
+                thing.map(|x: &B| {
+                    // let res: Option<B> = Some(x.clone());
+                    New::new(x.clone())
+                })
+            }
+        }
     }
 }

@@ -112,15 +112,29 @@ pub trait NewFrom<T>: Container {
     fn new_from(fun: impl FnMut() -> T) -> Self;
 }
 
+
 impl<T> New<T> for Option<T> {
     fn new(elem_val: T) -> Self {
         Some(elem_val)
     }
 }
 
+
 impl<T> NewFrom<T> for Option<T> {
     fn new_from(mut fun: impl FnMut() -> T) -> Self {
         Some(fun())
+    }
+}
+
+impl<T: Clone> New<T> for Pair<T> {
+    fn new(elem_val: T) -> Self {
+        Pair(elem_val.clone(), elem_val)
+    }
+}
+
+impl<T> NewFrom<T> for Pair<T> {
+    fn new_from(mut fun: impl FnMut() -> T) -> Self {
+        Pair(fun(), fun())
     }
 }
 

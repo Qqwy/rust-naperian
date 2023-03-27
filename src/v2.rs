@@ -571,72 +571,110 @@ where
 }
 
 
-/// Example from the paper
-/// Also thanks to the 'monadic' crate for the translation of the State datatype to Rust
-pub struct State<'a, S, A> { 
-    pub run_state: Box<dyn 'a + Fn(S) -> (A, S)>,
-}
+// /// Example from the paper
+// /// Also thanks to the 'monadic' crate for the translation of the State datatype to Rust
+// pub struct State<'a, S, A> { 
+//     pub run_state: Box<dyn 'a + Fn(S) -> (A, S)>,
+// }
 
-impl<'a, S, A> State<'a, S, A> {
-    /// Given an initial_state,
-    /// runs the contained state-transition-function to completion.
-    /// returning the final outcome `A` and the end state `S`.
-    fn run(&self, initial_state: S) -> (A, S) {
-        (*self.run_state)(initial_state)
-    }
+// impl<'a, S, A> State<'a, S, A> {
+//     /// Given an initial_state,
+//     /// runs the contained state-transition-function to completion.
+//     /// returning the final outcome `A` and the end state `S`.
+//     fn run(&self, initial_state: S) -> (A, S) {
+//         (*self.run_state)(initial_state)
+//     }
 
-    /// Variant of [`State::run`] that discards the resulting state,
-    /// only returning the final outcome `A`.
-    fn exec(&self, initial_state: S) -> A {
-        self.run(initial_state).0
-    }
-}
+//     /// Variant of [`State::run`] that discards the resulting state,
+//     /// only returning the final outcome `A`.
+//     fn exec(&self, initial_state: S) -> A {
+//         self.run(initial_state).0
+//     }
+// }
 
-unsafe impl<'a, S, A> Container for State<'a, S, A> {
-    type Elem = A;
-    type Containing<X> = State<'a, S, X>;
-}
+// unsafe impl<'a, S, A> Container for State<'a, S, A> {
+//     type Elem = A;
+//     type Containing<X> = State<'a, S, X>;
+// }
 
-impl<'a, S: 'a, A: Clone + 'a> New<A> for State<'a, S, A> {
-    fn new(elem_val: A) -> Self {
-        State { run_state: Box::new( move |state: S| (elem_val.clone(), state))}
-    }
-}
+// impl<'a, S: 'a, A: Clone + 'a> New<A> for State<'a, S, A> {
+//     fn new(elem_val: A) -> Self {
+//         State { run_state: Box::new( move |state: S| (elem_val.clone(), state))}
+//     }
+// }
 
-/// Behaves like Mappable but types that need restricted lifetime bounds cannot implement the normal Mappable
-pub trait MappableWithLifetime<'a, U>: Container {
-    fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U>;
-}
+// /// Behaves like Mappable but types that need restricted lifetime bounds cannot implement the normal Mappable
+// pub trait MappableWithLifetime<'a, U>: Container {
+//     fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U>;
+// }
 
-impl<'a, U, S, A> MappableWithLifetime<'a, U> for State<'a, S, A> {
-    fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U> {
-        let boxed_fun = Box::new(fun);
-        State { run_state: Box::new( move |state: S| {
-            let (a, s) = self.run(state);
-            let b = boxed_fun(&a);
-            (b, s)
-        })}
-    }
-}
+// impl<'a, U, S, A> MappableWithLifetime<'a, U> for State<'a, S, A> {
+//     fn map(&'a self, fun: impl Fn(&Self::Elem) -> U + 'a) -> Self::Containing<U> {
+//         let boxed_fun = Box::new(fun);
+//         State { run_state: Box::new( move |state: S| {
+//             let (a, s) = self.run(state);
+//             let b = boxed_fun(&a);
+//             (b, s)
+//         })}
+//     }
+// }
 
 
-/// Behaves like Apply but types that need restricted lifetime bounds cannot implement the normal Apply
-pub trait ApplyWithLifetime<'a, A, B, F: Fn(&A) -> B>: Container
+// /// Behaves like Apply but types that need restricted lifetime bounds cannot implement the normal Apply
+// pub trait ApplyWithLifetime<'a, A, B, F: Fn(&A) -> B>: Container
+// {
+//     fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B>;
+// }
+
+// impl<'a, A: 'a, B: 'a, F: 'a, S> ApplyWithLifetime<'a, A, B, F> for State<'a, S, F>
+// where
+//     F: Fn(&A) -> B,
+// {
+//     fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B> {
+//         State { run_state: Box::new(|s0| {
+//             let (val, s1) = vals.run(s0);
+//             let (fun, s2) = self.run(s1);
+//             (fun(&val), s2)
+//         })}
+//     }
+// }
+
+/// Anything that is a Dimension can be used one one rank of a hypercuboid.
+///
+///
+/// Conceptually Dimension is a supertrait of [`Mappable`], [`Apply`], [`New`], [`Mappable2`], [`Mappable3`], [`IntoIterator`] and  [`Traversable`].
+/// But making it a 'true' supertrait would require a very large number of (usually unconstrained and therefore un-inferrable) type parameters.
+/// Instead, this trait has been marked as unsafe: Only implement it for types for which above traits also have been implemented!
+pub unsafe trait Dimension: Container
 {
-    fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B>;
+    fn size(&self) -> usize;
 }
 
-impl<'a, A: 'a, B: 'a, F: 'a, S> ApplyWithLifetime<'a, A, B, F> for State<'a, S, F>
-where
-    F: Fn(&A) -> B,
-{
-    fn ap(&'a self, vals: &'a Self::Containing<A>) -> Self::Containing<B> {
-        State { run_state: Box::new(|s0| {
-            let (val, s1) = vals.run(s0);
-            let (fun, s2) = self.run(s1);
-            (fun(&val), s2)
-        })}
+unsafe impl<T> Dimension for Pair<T> {
+    fn size(&self) -> usize {
+        2
     }
+}
+
+unsafe impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
+    fn size(&self) -> usize {
+        N::USIZE
+    }
+}
+
+// pub trait InnerProduct {
+//     fn innerp(&self, ) -> usize;
+// }
+/// Calculate the inner product of two containers of the same shape.
+pub fn innerp<A, R>(a: &A, b: &A) -> R
+    where
+    A: Mappable2<R, R> + Container<Containing<R> = A> + IntoIterator,
+    R: std::iter::Sum<<A as std::iter::IntoIterator>::Item>,
+    R: core::ops::Mul<R, Output = R> + Copy,
+{
+    let products = a.map2(b, &|x: &R, y: &R| { (*x) * (*y) });
+    let result = products.into_iter().sum();
+    result
 }
 
 #[cfg(test)]
@@ -659,12 +697,26 @@ mod tests {
         assert_eq!(vec_of_pairs, arr![_;Pair(1, 10), Pair(2, 20), Pair(3, 30)]);
     }
 
+    // pub fn increase<'a>(m: &'a usize) -> State<'a, usize, usize>{
+    //     State { run_state: Box::new(move |n| (m + n, m + n))}
+    // }
+
     #[test]
     fn traversable() {
         let pair = Pair(10, 20);
+        // let res = pair.traverse(increase);
         // println!("{:?}", pair);
         // let pair_of_vecs = Pair(arr![usize; 1,2,3], arr![usize; 10, 20, 30]);
         // let transposed = pair_of_vecs.transpose();
         // println!("{:?}", transposed);
+        // increase m = State (λn → (m + n, m + n))
+    }
+
+    #[test]
+    fn innerprod() {
+        let v123 = arr![usize; 1,2,3];
+        let v456 = arr![usize; 4,5,6];
+        let res = innerp(&v123, &v456);
+        println!("{:?}", res);
     }
 }

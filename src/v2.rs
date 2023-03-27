@@ -515,6 +515,36 @@ where
     G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
 {}
 
+
+pub trait Traversable<G, A, B>
+    where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
+}
+
+impl<G, A, B: Clone> Traversable<G, A, B> for Option<A>
+where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
+    Self::Containing<B>: New<B>,
+    <G as Container>::Containing<<Option<A> as Container>::Containing<B>>: New<Option<B>>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Self::Containing<B>> {
+        match self {
+            None => {
+                New::new(None)
+            },
+            Some(val) => {
+                fun(val).map(|x: &B| {
+                    New::new(x.clone())
+                })
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -527,37 +557,5 @@ mod tests {
         println!("{:?}", three_by_two);
         let two_by_three = three_by_two.transpose();
         println!("{:?}", two_by_three);
-    }
-}
-
-pub trait Traversable<G, A, B>
-    where
-    Self: Mappable<A>,
-    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
-    G::Containing<Self::Containing<B>>: New<Self::Containing<B>>,
-{
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
-}
-
-impl<G, A, B: Clone> Traversable<G, A, B> for Option<A>
-where
-    Self: Mappable<A>,
-    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
-    Self::Containing<B>: New<B>,
-    G::Containing<Self::Containing<B>>: New<Self::Containing<B>>,
-{
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Self::Containing<B>> {
-        match self {
-            None => {
-                New::new(None)
-            },
-            Some(val) => {
-                let thing = fun(val);
-                thing.map(|x: &B| {
-                    // let res: Option<B> = Some(x.clone());
-                    New::new(x.clone())
-                })
-            }
-        }
     }
 }

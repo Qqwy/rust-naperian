@@ -1,9 +1,11 @@
 pub mod fin;
 use fin::Fin;
 
-use generic_array::sequence::GenericSequence;
+use generic_array::sequence::{GenericSequence, Lengthen};
 use generic_array::{ArrayLength, GenericArray};
 use typenum::consts::*;
+use typenum::Unsigned;
+use typenum::operator_aliases::{Prod, Add1, Sub1};
 
 /// Trait which makes higher-kindred types tick
 ///
@@ -763,21 +765,14 @@ where
 
 use frunk::hlist::{HList, HCons, HNil};
 
-pub trait Hyper {
-    type Dimensions: HList;
-    type Elem;
-}
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Scalar<T>(T);
 unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
     type Containing<X> = Scalar<X>;
 }
 
-impl<T> Hyper for Scalar<T> {
-    type Dimensions = HNil;
-    type Elem = T;
-}
 
 impl<T> New<T> for Scalar<T> {
     fn new(val: T) -> Self {
@@ -787,20 +782,45 @@ impl<T> New<T> for Scalar<T> {
 
 /// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
-pub struct Prism<T, Ts, N, Ns>(GenericArray<Ts, N>, core::marker::PhantomData<(T, Ns)>)
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
 where
     N: ArrayLength,
     // Ts: Hyper<Dimensions = Ns>,
     Ns: HList,
 ;
 
+impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength,
+    Ns: HList,
+    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
+    Ts::AmountOfElems: core::ops::Mul<N>,
+    Prod<Ts::AmountOfElems, N>: ArrayLength,
+    Ts::Orig: core::fmt::Debug,
+    Ts::Rank: core::ops::Add<B1>,
+    Add1<Ts::Rank>: ArrayLength,
+
+    Ts::Rank: core::ops::Add<B1> + ArrayLength,
+    Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
+    Sub1<Add1<Ts::Rank>>: ArrayLength,
+    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Prism")
+            .field("dimensions", &Self::dimensions())
+            .field("contents", &self.inner())
+            .finish()
+    }
+}
+
 impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
     N: ArrayLength,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns>,
+    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
 {
-    pub fn new(vals: GenericArray<Ts, N>) -> Self {
+    pub fn normalize(vals: Ts) -> Self {
         Prism(vals, core::marker::PhantomData)
     }
 }
@@ -816,14 +836,102 @@ where
     type Containing<X> = Prism<X, Ts::Containing<X>, N, Ns>;
 }
 
+pub trait Hyper {
+    type Dimensions: HList;
+    type Elem;
+    // type Inner;
+    type Orig;
+    type Rank: ArrayLength;
+
+    // fn into_inner(&self) -> &Self::Inner;
+    fn inner(&self) -> &Self::Orig;
+
+    type AmountOfElems: ArrayLength;
+    fn amount_of_elems(&self) -> usize {
+        Self::AmountOfElems::to_usize()
+    }
+
+    fn rank() -> usize {
+        Self::Rank::USIZE
+    }
+
+    fn dimensions() -> GenericArray<usize, Self::Rank>;
+
+    // fn dimensions() -> GenericArray<usize, Self::Rank> {
+
+    // }
+
+    fn dim(&self) -> usize;
+
+    fn first(&self) -> &Self::Elem;
+}
+
+impl<T> Hyper for Scalar<T> {
+    type Dimensions = HNil;
+    type Elem = T;
+    // type Inner = T;
+    type Orig = T;
+    type AmountOfElems = U1;
+    type Rank = U0;
+    // fn into_inner(&self) -> &T {
+    //     &self.0
+    // }
+
+    fn dim(&self) -> usize {
+        1
+    }
+    fn first(&self) -> &T {
+        &self.0
+    }
+    fn inner(&self) -> &T {
+        &self.0
+    }
+
+    fn dimensions() -> GenericArray<usize, Self::Rank> {
+        Default::default()
+    }
+}
+
+
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
-    Ts: Hyper<Dimensions = Ns>,
+    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
     Ns: HList,
     N: ArrayLength,
+    Ts::AmountOfElems: core::ops::Mul<N>,
+    Ts::Rank: core::ops::Add<B1>,
+    Add1<Ts::Rank>: ArrayLength,
+    Prod<Ts::AmountOfElems, N>: ArrayLength,
+
+    Ts::Rank: core::ops::Add<B1> + ArrayLength,
+    Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
+    Sub1<Add1<Ts::Rank>>: ArrayLength,
+    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
 {
     type Dimensions = HCons<N, Ns>;
-    type Elem = Ts::Elem;
+    type Elem = T;
+    // type Inner = GenericArray<T, N>;
+    type Orig = Ts::Orig;
+    type Rank = Add1<Ts::Rank>;
+
+    type AmountOfElems = Prod<Ts::AmountOfElems, N>;
+
+    fn dim(&self) -> usize {
+        N::USIZE
+    }
+    fn first(&self) -> &Self::Elem {
+        let ga = self.0.first();
+        let first_row = ga.first().unwrap();
+        first_row
+    }
+
+    fn inner(&self) -> &Self::Orig {
+        &self.0.inner()
+    }
+
+    fn dimensions() -> GenericArray<usize, Self::Rank> {
+        Ts::dimensions().append(N::USIZE)
+    }
 }
 
 impl<T, A> Mappable<A> for Scalar<T> {
@@ -842,14 +950,14 @@ where
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
-    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map(|inner| inner.map(&mut fun));
-        Prism::new(res)
+    fn map(&self, fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map(fun);// .map(|inner| inner.map(&mut fun));
+        Prism(res, core::marker::PhantomData)
     }
 
-    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map_by_value(|inner| inner.map_by_value(&mut fun));
-        Prism::new(res)
+    fn map_by_value(self, fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map_by_value(fun);// map_by_value(|inner| inner.map_by_value(&mut fun));
+        Prism(res, core::marker::PhantomData)
     }
 }
 
@@ -908,6 +1016,28 @@ mod tests {
             res,
             arr![arr![17, 22, 27], arr![22, 29, 36], arr![27, 36, 45]]
         );
+    }
+
+    #[test]
+    fn hyper_map() {
+        let v123 = arr![1, 2, 3];
+        let v456 = arr![4, 5, 6];
+        let two_by_three: GenericArray<GenericArray<usize, _>, _> = arr![v123, v456];
+        // let val = Prism::new(Scalar::new(two_by_three));
+        let val = Scalar::new(two_by_three);
+        println!("{:?}", val);
+        println!("{:?}", val.dim());
+        println!("{:?}", val.amount_of_elems());
+        let val = Prism::normalize(Scalar::new(two_by_three));
+        println!("{:?}", val);
+        println!("{:?}", val.dim());
+        println!("{:?}", val.amount_of_elems());
+        let val = Prism::normalize(Prism::normalize(Scalar::new(two_by_three)));
+        let first = val.first();
+        println!("{:?}", val);
+        println!("{:?}", val.dim());
+        println!("{:?}", val.amount_of_elems());
+        println!("{:?}", first);
     }
 }
 

@@ -1,8 +1,8 @@
 pub mod fin;
 use fin::Fin;
 
-use generic_array::sequence::{GenericSequence, Lengthen};
-use generic_array::{ArrayLength, GenericArray};
+use generic_array::sequence::{GenericSequence, Lengthen, Shorten};
+use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::{Unsigned, NonZero};
 use typenum::operator_aliases::{Prod, Add1, Sub1};
@@ -771,6 +771,7 @@ use frunk::hlist::{HList, HCons, HNil};
 
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct Scalar<T>(T);
 unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
@@ -808,6 +809,7 @@ where
 /// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
 pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
 where
     N: ArrayLength + NonZero,
@@ -863,7 +865,7 @@ where
     type Containing<X> = Prism<X, Ts::Containing<X>, N, Ns>;
 }
 
-pub trait Hyper {
+pub trait Hyper: Sized {
     type Dimensions: HList;
     type Elem;
     // type Inner;
@@ -893,6 +895,9 @@ pub trait Hyper {
     fn first(&self) -> &Self::Elem;
 
     fn hreplicate(elem: Self::Elem) -> Self;
+
+    fn into_flat(self) -> Array<Self::Elem, Self::AmountOfElems>;
+    fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self;
 }
 
 impl<T> Hyper for Scalar<T> {
@@ -921,6 +926,13 @@ impl<T> Hyper for Scalar<T> {
     }
 
     fn hreplicate(elem: Self::Elem) -> Self {
+        Scalar(elem)
+    }
+    fn into_flat(self) -> Array<Self::Elem, U1> {
+        arr![self.0]
+    }
+    fn from_flat(arr: Array<Self::Elem, U1>) -> Self {
+        let (elem, _empty_arr) = arr.pop_front();
         Scalar(elem)
     }
 }
@@ -976,6 +988,37 @@ where
         // Prism::new(elem)
         Prism(Ts::hreplicate(New::new(elem)), core::marker::PhantomData)
     }
+    fn into_flat(self) -> Array<Self::Elem, Self::AmountOfElems> {
+        // SAFETY: GenericArray has the following guarantees:
+        // - It stores `Self::Elem` types consecutively in memory, with proper alignment
+        // - the memory layout of GenericArray<GenericArray<T, N>, M> equals GenericArray<T, N * M>
+        // Furthermore, Prism and Scalar are repr(transparent) so transmuting them to GenericArray is allowed.
+        //
+        // Note that we cannot use transmute because the compiler is not able to see that the sizes match
+        // (even though they do!) c.f. https://github.com/rust-lang/rust/issues/47966
+        unsafe {
+            // let me = &mut self as *mut Self;
+            // core::mem::forget(self);
+            // let arr_ptr: *mut Array<Self::Elem, Self::AmountOfElems> = core::mem::transmute(me);
+            // *arr_ptr
+            let arr = ::core::ptr::read(&self as *const Self as *const Array<Self::Elem, Self::AmountOfElems>);
+            ::core::mem::forget(self);
+            arr
+        }
+    }
+
+    fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self {
+        // SAFETY: See into_flat
+        unsafe {
+            // let arr_ptr = &mut arr as *mut Array<Self::Elem, Self::AmountOfElems>;
+            // core::mem::forget(arr);
+            // let me_ptr: *mut Self = core::mem::transmute(arr_ptr);
+            // *me_ptr
+            let me = ::core::ptr::read(&arr as *const Array<Self::Elem, Self::AmountOfElems> as *const Self);
+            ::core::mem::forget(arr);
+            me
+        }
+    }
 }
 
 impl<T, A> Mappable<A> for Scalar<T> {
@@ -1007,16 +1050,20 @@ where
 
 /// Vect, a rank-1 tensor.
 pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
-pub type Mat<T, R, C> = Prism<T, Vect<Array<T, C>, R>, C, HCons<R, HNil>>;
-pub type Tensor3<T, S, R, C> = Prism<T, Mat<Array<T, C>, S, R>, C, HCons<R, HCons<S, HNil>>>;
+pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
+pub type Tensor3<T, Slices, Rows, Cols> = Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
 
-pub fn foo() {
-    use generic_array::arr;
+pub fn foo() -> Tensor3<usize, U2, U2, U3> {
     let v: Vect<usize, U3> = Prism::build(Scalar::new(arr![1,2,3]));
     let mat: Mat<usize, U2, U3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
     // let tens: Tensor3<usize, U2, U3, U1> = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
-    let tens: Tensor3<usize, U1, U2, U3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
-    println!("{:?}", core::any::type_name_of_val(&tens));
+    let tens: Tensor3<usize, U2, U2, U3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]], arr![arr![7,8,9], arr![10, 11, 12]]]))));
+    println!("{:?}", &mat);
+    println!("{:?}", &tens);
+    let flat: &Array<usize, U12> = unsafe { core::mem::transmute(&tens) };
+    println!("flat: {:?}", &flat);
+    // println!("{:?}", core::any::type_name_of_val(&tens));
+    tens
 }
 
 // pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
@@ -1038,11 +1085,10 @@ pub fn foo() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use generic_array::arr;
     
     #[test]
     fn foofoo() {
-        super::foo();
+        let val = super::foo();
     }
 
     #[test]
@@ -1128,6 +1174,17 @@ mod tests {
     // fn hyper_first() {
     //     super::hyper_first();
     // }
+
+    #[test]
+    fn flattening() {
+        let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
+        println!("{:?}", &flat);
+        let tens = Tensor3::<usize, U2, U2, U3>::from_flat(flat);
+        println!("{:?}", &tens);
+        let flat2 = arr!["hello", "world", "how", "are", "you", "doing"];
+        let mat = Mat::<&'static str, U3, U2>::from_flat(flat2);
+        println!("{:?}", &mat);
+    }
 }
 
 pub fn matrixprod(
@@ -1138,7 +1195,6 @@ pub fn matrixprod(
 }
 
 pub fn hyper_first(v123: Array<usize, U3>, v456: GenericArray<usize, U3>) -> usize {
-    use generic_array::arr;
     // let v123 = arr![1, 2, 3];
     // let v456 = arr![4, 5, 6];
     let two_by_three: Array<GenericArray<usize, _>, _> = arr![v123, v456];

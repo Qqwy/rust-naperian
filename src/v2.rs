@@ -1191,7 +1191,7 @@ pub fn alignment() {
     println!("mat2: {:?}", mat2);
 }
 
-trait HyperMax<Other> {
+pub trait HyperMax<Other> {
     type Output;
 }
 impl<T> HyperMax<Scalar<T>> for Scalar<T> {
@@ -1224,13 +1224,27 @@ where
     type Output = Prism<T, <Ts as HyperMax<Ts2>>::Output, N, <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions>;
 }
 
+pub fn align2<Left, Right, Max>(left: Left, right: Right) -> (Max, Max)
+    where
+    Left: HyperMax<Right, Output=Max>,
+    Max: Hyper,
+    Left: Hyper<Elem = Max::Elem> + HyperAlign<Max>,
+    Right: Hyper<Elem = Max::Elem> + HyperAlign<Max>,
+{
+    (left.align(), right.align())
+}
+
 pub fn hypermax() {
     let mat = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
     let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1,2,3,4,5,6,7,8,9,10,11,12]);
-    let res = std::any::type_name::<
-            <Vect::<usize, 1> as HyperMax<Mat::<usize, 2, 1>>>::Output
-            >();
-    println!("res: {:?}", res);
+    type Max = <Vect::<usize, 1> as HyperMax<Mat::<usize, 2, 1>>>::Output;
+    let res = std::any::type_name::<Max>();
+    println!("Max: {:?}", res);
+    let (mat_aligned, tens_aligned) = align2(mat, tens);
+    // let mat_aligned: Max = mat.align();
+    // let tens_aligned: Max = tens.align();
+    println!("mat_aligned: {:?}", &mat_aligned);
+    println!("tens_aligned: {:?}", &tens_aligned);
 }
 
 

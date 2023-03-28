@@ -1017,26 +1017,14 @@ where
         // Note that we cannot use transmute because the compiler is not able to see that the sizes match
         // (even though they do!) c.f. https://github.com/rust-lang/rust/issues/47966
         unsafe {
-            // let me = &mut self as *mut Self;
-            // core::mem::forget(self);
-            // let arr_ptr: *mut Array<Self::Elem, Self::AmountOfElems> = core::mem::transmute(me);
-            // *arr_ptr
-            let arr = ::core::ptr::read(&self as *const Self as *const Array<Self::Elem, Self::AmountOfElems>);
-            ::core::mem::forget(self);
-            arr
+            core::mem::transmute_copy(&self)
         }
     }
 
     fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self {
         // SAFETY: See into_flat
         unsafe {
-            // let arr_ptr = &mut arr as *mut Array<Self::Elem, Self::AmountOfElems>;
-            // core::mem::forget(arr);
-            // let me_ptr: *mut Self = core::mem::transmute(arr_ptr);
-            // *me_ptr
-            let me = ::core::ptr::read(&arr as *const Array<Self::Elem, Self::AmountOfElems> as *const Self);
-            ::core::mem::forget(arr);
-            me
+            core::mem::transmute_copy(&arr)
         }
     }
 }
@@ -1068,10 +1056,33 @@ where
     }
 }
 
-/// Vect, a rank-1 tensor.
+/// Vect, a Vector with a statically-known size.
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
 pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
+
+/// Mat, a Matrix with a statically-known dimensions (rows, colums).
+///
+/// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
 pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
+
+/// Rank-3 tensors (slices, rows, columns).
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
 pub type Tensor3<T, Slices, Rows, Cols> = Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
+
+use typenum::U;
+pub type VectC<T, const N: usize> = Prism<T, Scalar<Array<T, U::<N>>>, U::<N>, HNil>;
+pub type MatC<T, const ROWS: usize, const COLS: usize> = Prism<T, Vect<Array<T, U::<COLS>>, U::<ROWS>>, U::<COLS>, HCons<U::<ROWS>, HNil>>;
+pub type Tensor3C<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<T, Mat<Array<T, U::<COLS>>, U::<SLICES>, U::<ROWS>>, U::<COLS>, HCons<U::<ROWS>, HCons<U::<SLICES>, HNil>>>;
 
 pub fn foo() -> Tensor3<usize, U2, U2, U3> {
     let v: Vect<usize, U3> = Prism::build(Scalar::new(arr![1,2,3]));
@@ -1211,6 +1222,19 @@ mod tests {
         let mat = Mat::<&'static str, U3, U2>::from_flat(flat2);
         println!("{:?}", &mat);
     }
+}
+
+pub fn reshape_example(flat: Array<usize, U::<20>>) -> Tensor3C::<usize, 2, 2, 5> {
+    // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
+    let tens = Tensor3C::<usize, 2, 2, 5>::from_flat(flat);
+    tens
+    // println!("{:?}", &tens);
+    // let vec: MatC<usize, 6, 2> = tens.reshape();
+
+    // let four_by_three: Mat<usize, U4, U2> = tens.reshape();
+    // println!("{:?}", &four_by_three);
+    // let three_by_four: Mat<usize, U3, U4> = four_by_three.reshape();
+    // println!("{:?}", &three_by_four);
 }
 
 pub fn matrixprod(

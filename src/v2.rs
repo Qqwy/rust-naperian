@@ -84,21 +84,21 @@ unsafe impl<T, N> Container for GenericArray<T, N>
 /// ```rust
 /// use naperian::v2::Mappable;
 /// use generic_array::arr;
-/// let v123 = arr![usize; 1,2,3];
-/// assert_eq!(v123.map(|x| x + 1), arr![usize; 2, 3, 4]);
+/// let v123 = arr![1,2,3];
+/// assert_eq!(v123.map(|x| x + 1), arr![2, 3, 4]);
 /// ```
 ///
 /// Using mutable state as a 'lightweight traversable':
 ///```rust
 /// use naperian::v2::Mappable;
 /// use generic_array::arr;
-/// let v123 = arr![usize; 1,2,3];
+/// let v123 = arr![1,2,3];
 /// let mut sum = 0;
 /// let prefix_sums = v123.map(|val| {
 ///     sum += val;
 ///     sum
 /// });
-/// assert_eq!(prefix_sums, arr![usize; 1, 3, 6]);
+/// assert_eq!(prefix_sums, arr![1, 3, 6]);
 /// assert_eq!(sum, 6);
 ///```
 pub trait Mappable<U>: Container {
@@ -845,7 +845,7 @@ mod tests {
         let pair = Pair(10, 20);
         // let res = pair.traverse(increase);
         // println!("{:?}", pair);
-        // let pair_of_vecs = Pair(arr![usize; 1,2,3], arr![usize; 10, 20, 30]);
+        // let pair_of_vecs = Pair(arr![1,2,3], arr![10, 20, 30]);
         // let transposed = pair_of_vecs.transpose();
         // println!("{:?}", transposed);
         // increase m = State (λn → (m + n, m + n))
@@ -877,15 +877,15 @@ pub fn matrixprod(two_by_three: GenericArray<GenericArray<usize, U2>, U3>, three
 
 // pub fn innerprod(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
 //     // use generic_array::arr;
-//     // let v123 = arr![usize; 1,2,3];
-//     // let v456 = arr![usize; 4,5,6];
+//     // let v123 = arr![1,2,3];
+//     // let v456 = arr![4,5,6];
 //     innerp(&v123, &v456)
 // }
 
 // // pub fn innerprod_orig() {
 // pub fn innerprod_orig(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
 //     // use generic_array::arr;
-//     // let v123 = arr![usize; 1,2,3];
-//     // let v456 = arr![usize; 4,5,6];
+//     // let v123 = arr![1,2,3];
+//     // let v456 = arr![4,5,6];
 //     innerp_orig(&v123, &v456)
 // }

@@ -1,3 +1,5 @@
+use std::mem::ManuallyDrop;
+
 use generic_array::sequence::GenericSequence;
 use typenum::Unsigned;
 use typenum::consts::*;
@@ -100,17 +102,27 @@ unsafe impl<T, N> Container for GenericArray<T, N>
 ///```
 pub trait Mappable<U>: Container {
     fn map(&self, fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U>;
+
+    fn map_by_value(self, fun: impl FnMut(Self::Elem) -> U) -> Self::Containing<U>;
 }
 
 impl<T, U> Mappable<U> for Option<T> {
     fn map(&self, fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
         Option::map(self.as_ref(), fun)
     }
+
+    fn map_by_value(self, fun: impl FnMut(Self::Elem) -> U) -> Self::Containing<U> {
+        Option::map(self, fun)
+    }
 }
 
 impl<T, U> Mappable<U> for Pair<T> {
     fn map(&self, mut fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0), fun(&self.1))
+    }
+
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> U) -> Self::Containing<U> {
+        Pair(fun(self.0), fun(self.1))
     }
 }
 
@@ -123,6 +135,9 @@ where
             let val = &self[pos];
             fun(val)
         })
+    }
+    fn map_by_value(self, fun: impl FnMut(Self::Elem) -> U) -> Self::Containing<U> {
+        self.into_iter().map(fun).collect()
     }
 }
 
@@ -287,10 +302,18 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 /// As such, it is usually better idea to implement `map2` directly for your type (as seen in the example at the top).
 pub trait Mappable2<A, U>: Container {
     fn map2<B>(&self, rhs: &Self::Containing<B>, fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U>;
+    fn map2_by_value<B>(self, rhs: Self::Containing<B>, fun: impl FnMut(A, B) -> U) -> Self::Containing<U>;
 }
 
 impl<A, U> Mappable2<A, U> for Option<A> {
     fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
+        match (self, rhs) {
+            (Some(left), Some(right)) => Some(fun(left, right)),
+            (_, _) => None,
+        }
+    }
+
+    fn map2_by_value<B>(self, rhs: Self::Containing<B>, mut fun: impl FnMut(A, B) -> U) -> Self::Containing<U> {
         match (self, rhs) {
             (Some(left), Some(right)) => Some(fun(left, right)),
             (_, _) => None,
@@ -302,6 +325,10 @@ impl<A, U> Mappable2<A, U> for Pair<A> {
     fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0, &rhs.0), fun(&self.1, &rhs.1))
     }
+
+    fn map2_by_value<B>(self, rhs: Self::Containing<B>, mut fun: impl FnMut(A, B) -> U) -> Self::Containing<U> {
+        Pair(fun(self.0, rhs.0), fun(self.1, rhs.1))
+    }
 }
 
 impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
@@ -312,6 +339,10 @@ impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
             fun(left, right)
         })
     }
+
+    fn map2_by_value<B>(self, rhs: Self::Containing<B>, mut fun: impl FnMut(A, B) -> U) -> Self::Containing<U> {
+        self.into_iter().zip(rhs).map(|(left, right)| fun(left, right)).collect()
+    }
 }
 
 /// Map a ternary (three-parameter) function over a container.
@@ -320,10 +351,18 @@ impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
 /// In particular, the same implementation trade-offs apply w.r.t. [`Mappable2`].
 pub trait Mappable3<A, U>: Container {
     fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U>;
+    fn map3_by_value<B, C>(self, second: Self::Containing<B>, third: Self::Containing<C>, fun: impl FnMut(A, B, C) -> U) -> Self::Containing<U>;
 }
 
 impl<A, U> Mappable3<A, U> for Option<A> {
     fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, mut fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U> {
+        match (self, second, third) {
+            (Some(one), Some(two), Some(three)) => Some(fun(one, two, three)),
+            (_, _, _) => None,
+        }
+    }
+
+    fn map3_by_value<B, C>(self, second: Self::Containing<B>, third: Self::Containing<C>, mut fun: impl FnMut(A, B, C) -> U) -> Self::Containing<U> {
         match (self, second, third) {
             (Some(one), Some(two), Some(three)) => Some(fun(one, two, three)),
             (_, _, _) => None,
@@ -334,7 +373,9 @@ impl<A, U> Mappable3<A, U> for Option<A> {
 impl<A, U> Mappable3<A, U> for Pair<A> {
     fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, mut fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0, &second.0, &third.0), fun(&self.1, &second.1, &third.1))
-
+    }
+    fn map3_by_value<B, C>(self, second: Self::Containing<B>, third: Self::Containing<C>, mut fun: impl FnMut(A, B, C) -> U) -> Self::Containing<U> {
+        Pair(fun(self.0, second.0, third.0), fun(self.1, second.1, third.1))
     }
 }
 
@@ -346,6 +387,10 @@ impl<A, U, N: ArrayLength> Mappable3<A, U> for GenericArray<A, N> {
             let three = &third[pos];
             fun(one, two, three)
         })
+    }
+
+    fn map3_by_value<B, C>(self, second: Self::Containing<B>, third: Self::Containing<C>, mut fun: impl FnMut(A, B, C) -> U) -> Self::Containing<U> {
+        self.into_iter().zip(second).zip(third).map(|((one, two), three)| fun(one, two, three)).collect()
     }
 }
 
@@ -558,7 +603,7 @@ pub trait Traversable<G, A, B>
     fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
 }
 
-impl<G, A, B: Clone> Traversable<G, A, B> for Option<A>
+impl<G, A, B> Traversable<G, A, B> for Option<A>
 where
     Self: Mappable<A>,
     G: Mappable<Self::Containing<B>> + Container<Elem=B>,
@@ -571,8 +616,8 @@ where
                 New::new(None)
             },
             Some(val) => {
-                fun(val).map(|x: &B| {
-                    New::new(x.clone())
+                fun(val).map_by_value(|x| {
+                    New::new(x)
                 })
             }
         }

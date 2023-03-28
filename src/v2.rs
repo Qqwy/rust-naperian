@@ -4,7 +4,7 @@ use fin::Fin;
 use generic_array::sequence::{GenericSequence, Lengthen};
 use generic_array::{ArrayLength, GenericArray};
 use typenum::consts::*;
-use typenum::Unsigned;
+use typenum::{Unsigned, NonZero};
 use typenum::operator_aliases::{Prod, Add1, Sub1};
 
 /// Trait which makes higher-kindred types tick
@@ -785,14 +785,14 @@ impl<T> New<T> for Scalar<T> {
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
 where
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     // Ts: Hyper<Dimensions = Ns>,
     Ns: HList,
 ;
 
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     Ns: HList,
     Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
     Ts::AmountOfElems: core::ops::Mul<N>,
@@ -816,11 +816,11 @@ where
 
 impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     Ns: HList,
     Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
 {
-    pub fn normalize(vals: Ts) -> Self {
+    pub fn build(vals: Ts) -> Self {
         Prism(vals, core::marker::PhantomData)
     }
 }
@@ -828,7 +828,7 @@ where
 
 unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
 where
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     Ts: Hyper<Dimensions = Ns> + Container<Elem = T>,
     Ns: HList,
 {
@@ -897,7 +897,7 @@ impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
     Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
     Ns: HList,
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Ts::Rank: core::ops::Add<B1>,
     Add1<Ts::Rank>: ArrayLength,
@@ -921,6 +921,9 @@ where
     }
     fn first(&self) -> &Self::Elem {
         let ga = self.0.first();
+        // Unwrap SAFETY: N is restricted to NonZero
+        // Therefore, ga is always non-empty
+        // No need to muck about with unsafe; compiler is smart enough here
         let first_row = ga.first().unwrap();
         first_row
     }
@@ -945,7 +948,7 @@ impl<T, A> Mappable<A> for Scalar<T> {
 
 impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
 where
-    N: ArrayLength,
+    N: ArrayLength + NonZero,
     Ts: Hyper<Dimensions = Ns> + Mappable<A> + Container<Elem=T>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
@@ -1028,17 +1031,22 @@ mod tests {
         println!("{:?}", val);
         println!("{:?}", val.dim());
         println!("{:?}", val.amount_of_elems());
-        let val = Prism::normalize(Scalar::new(two_by_three));
+        let val = Prism::build(Scalar::new(two_by_three));
         println!("{:?}", val);
         println!("{:?}", val.dim());
         println!("{:?}", val.amount_of_elems());
-        let val = Prism::normalize(Prism::normalize(Scalar::new(two_by_three)));
+        let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
         let first = val.first();
         println!("{:?}", val);
         println!("{:?}", val.dim());
         println!("{:?}", val.amount_of_elems());
         println!("{:?}", first);
     }
+
+    // #[test]
+    // fn hyper_first() {
+    //     super::hyper_first();
+    // }
 }
 
 pub fn matrixprod(
@@ -1046,6 +1054,15 @@ pub fn matrixprod(
     three_by_two: GenericArray<GenericArray<usize, U3>, U2>,
 ) -> GenericArray<GenericArray<usize, U3>, U3> {
     matrixp(&two_by_three, &three_by_two)
+}
+
+pub fn hyper_first(v123: GenericArray<usize, U3>, v456: GenericArray<usize, U3>) -> usize {
+    use generic_array::arr;
+    // let v123 = arr![1, 2, 3];
+    // let v456 = arr![4, 5, 6];
+    let two_by_three: GenericArray<GenericArray<usize, _>, _> = arr![v123, v456];
+    let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
+    *val.first()
 }
 
 // pub fn innerprod(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {

@@ -1186,10 +1186,54 @@ pub fn foo() -> Tensor3<usize, 2, 2, 3> {
 pub fn alignment() {
     let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1,2,3]));
     let mat: Mat<usize, 2, 3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
-    let mat2: Mat<usize, 2, 3> = v.align();
-    println!("mat: {:?}", mat);
+    let mat2: Tensor3<usize, 3, 2, 3> = mat.align();
+    // println!("mat: {:?}", mat);
     println!("mat2: {:?}", mat2);
 }
+
+trait HyperMax<Other> {
+    type Output;
+}
+impl<T> HyperMax<Scalar<T>> for Scalar<T> {
+    type Output = Scalar<T>;
+}
+impl<T, Ts, N, Ns> HyperMax<Scalar<T>> for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength + NonZero,
+    Ns: HList,
+{
+    type Output = Prism<T, Ts, N, Ns>;
+}
+
+impl<T, Ts, N, Ns> HyperMax<Prism<T, Ts, N, Ns>> for Scalar<T>
+where
+    N: ArrayLength + NonZero,
+    Ns: HList,
+{
+    type Output = Prism<T, Ts, N, Ns>;
+}
+
+impl<T, Ts, Ts2, N, Ns, Ns2> HyperMax<Prism<T, Ts, N, Ns>> for Prism<T, Ts2, N, Ns2>
+where
+    N: ArrayLength + NonZero,
+    Ns: HList,
+    Ns2: HList,
+    Ts: HyperMax<Ts2>,
+    <Ts as HyperMax<Ts2>>::Output: Hyper,
+{
+    type Output = Prism<T, <Ts as HyperMax<Ts2>>::Output, N, <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions>;
+}
+
+pub fn hypermax() {
+    let mat = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+    let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1,2,3,4,5,6,7,8,9,10,11,12]);
+    let res = std::any::type_name::<
+            <Vect::<usize, 1> as HyperMax<Mat::<usize, 2, 1>>>::Output
+            >();
+    println!("res: {:?}", res);
+}
+
+
 
 // pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
 // pub type Mat<T, R, C> = Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>;
@@ -1210,6 +1254,11 @@ pub fn alignment() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn hypermax() {
+        super::hypermax();
+    }
 
     #[test]
     fn alignment() {

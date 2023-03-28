@@ -1,5 +1,5 @@
-use typenum::Unsigned;
 use typenum::consts::*;
+use typenum::Unsigned;
 
 pub trait IsTrue {}
 impl IsTrue for B1 {}
@@ -13,12 +13,9 @@ pub struct Fin<N: Unsigned> {
 impl<N: Unsigned> core::fmt::Debug for Fin<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let name = format!("Fin<U{}>", N::USIZE);
-        f.debug_tuple(&name)
-            .field(&self.val)
-            .finish()
+        f.debug_tuple(&name).field(&self.val).finish()
     }
 }
-
 
 impl<N: Unsigned> Fin<N> {
     /// Creates a new Fin from a usize. Fallible, checked at runtime.
@@ -27,7 +24,10 @@ impl<N: Unsigned> Fin<N> {
     #[inline(always)]
     pub const fn new(val: usize) -> Result<Self, BoundError<N>> {
         if val < N::USIZE {
-            Ok(Fin{val, _phantom: core::marker::PhantomData })
+            Ok(Fin {
+                val,
+                _phantom: core::marker::PhantomData,
+            })
         } else {
             Err(BoundError::<N>::new())
         }
@@ -38,7 +38,10 @@ impl<N: Unsigned> Fin<N> {
     /// # Safety
     /// The caller is responsible for making sure that `val` is smaller than `N::USIZE`.
     pub unsafe fn new_unchecked(val: usize) -> Self {
-        Fin{val, _phantom: core::marker::PhantomData}
+        Fin {
+            val,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     /// Creates a new Fin from an unsigned typenum.
@@ -46,11 +49,14 @@ impl<N: Unsigned> Fin<N> {
     /// Outcome is always valid as too large values result in a compile error.
     #[inline(always)]
     pub const fn tnew<Val>() -> Self
-        where
+    where
         Val: Unsigned + typenum::IsLess<N>,
         typenum::Le<Val, N>: IsTrue,
     {
-        Fin{val: Val::USIZE, _phantom: core::marker::PhantomData}
+        Fin {
+            val: Val::USIZE,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     /// Creates a new Fin from an compile-time constant usize.
@@ -58,12 +64,15 @@ impl<N: Unsigned> Fin<N> {
     /// Outcome is always valid as too large values result in a compile error.
     #[inline(always)]
     pub const fn cnew<const VAL: usize>() -> Self
-        where
+    where
         typenum::Const<VAL>: typenum::ToUInt,
         typenum::U<VAL>: Unsigned + typenum::IsLess<N>,
         typenum::Le<typenum::U<VAL>, N>: IsTrue,
     {
-        Fin{val: VAL, _phantom: core::marker::PhantomData}
+        Fin {
+            val: VAL,
+            _phantom: core::marker::PhantomData,
+        }
     }
 
     #[inline(always)]
@@ -84,7 +93,9 @@ pub struct BoundError<N: Unsigned> {
 
 impl<N: Unsigned> BoundError<N> {
     pub const fn new() -> Self {
-        Self {_phantom: core::marker::PhantomData}
+        Self {
+            _phantom: core::marker::PhantomData,
+        }
     }
 }
 

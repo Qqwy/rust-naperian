@@ -896,8 +896,28 @@ pub trait Hyper: Sized {
 
     fn hreplicate(elem: Self::Elem) -> Self;
 
+    /// Reinterprets the backing memory as a one-dimensional array.
+    ///
+    /// This is a zero-cost operation. It compiles down to a no-op.
     fn into_flat(self) -> Array<Self::Elem, Self::AmountOfElems>;
+
+    /// Reinterprets a one-dimensional array as this Hyper shape.
+    ///
+    /// This is a zero-cost operation. It compiles down to a no-op.
     fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self;
+
+    /// Turns one Hyper into another.
+    ///
+    /// Sugar over calling Other::from_flat(self.into_flat()).
+    /// c.f. [`Hyper::into_flat`] and [`Hyper::from_flat`].
+    ///
+    /// This is a zero-cost operation. It compiles down to a no-op.
+    fn reshape<Other>(self) -> Other
+        where
+        Other: Hyper<Elem = Self::Elem, AmountOfElems = Self::AmountOfElems>
+    {
+        Other::from_flat(self.into_flat())
+    }
 }
 
 impl<T> Hyper for Scalar<T> {
@@ -1181,6 +1201,12 @@ mod tests {
         println!("{:?}", &flat);
         let tens = Tensor3::<usize, U2, U2, U3>::from_flat(flat);
         println!("{:?}", &tens);
+
+        let four_by_three: Mat<usize, U4, U3> = tens.reshape();
+        println!("{:?}", &four_by_three);
+        let three_by_four: Mat<usize, U3, U4> = four_by_three.reshape();
+        println!("{:?}", &three_by_four);
+
         let flat2 = arr!["hello", "world", "how", "are", "you", "doing"];
         let mat = Mat::<&'static str, U3, U2>::from_flat(flat2);
         println!("{:?}", &mat);

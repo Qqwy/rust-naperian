@@ -1094,6 +1094,25 @@ impl<T, A> Mappable<A> for Scalar<T> {
     }
 }
 
+// TODO might be incorrect
+impl<A, U> Mappable2<A, U> for Scalar<A> {
+    fn map2<'b, B: 'b>(
+        &self,
+        rhs: &'b Self::Containing<B>,
+        mut fun: impl FnMut(&A, &'b B) -> U,
+    ) -> Self::Containing<U> {
+        Scalar(fun(&self.0, &rhs.0))
+    }
+
+    fn map2_by_value<B>(
+        self,
+        rhs: Self::Containing<B>,
+        mut fun: impl FnMut(A, B) -> U,
+    ) -> Self::Containing<U> {
+        Scalar(fun(self.0, rhs.0))
+    }
+}
+
 impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
@@ -1109,6 +1128,33 @@ where
     fn map_by_value(self, fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
         let res = self.0.map_by_value(fun);// map_by_value(|inner| inner.map_by_value(&mut fun));
         Prism(res, core::marker::PhantomData)
+    }
+}
+
+// TODO might be incorrect
+impl<Ts, N, Ns, A, U> Mappable2<A, U> for Prism<A, Ts, N, Ns>
+where
+    N: ArrayLength + NonZero,
+    Ts: Hyper<Dimensions = Ns> + Mappable2<A, U> + Container<Elem=A>,
+    Ts::Containing<A>: Hyper<Dimensions = Ns>,
+    Ns: HList,
+{
+    fn map2<'b, B: 'b>(
+        &self,
+        rhs: &'b Self::Containing<B>,
+        fun: impl FnMut(&A, &'b B) -> U,
+    ) -> Self::Containing<U> {
+        let res = self.0.map2(&rhs.0, fun);
+        Prism(res, PhantomData)
+    }
+
+    fn map2_by_value<B>(
+        self,
+        rhs: Self::Containing<B>,
+        fun: impl FnMut(A, B) -> U,
+    ) -> Self::Containing<U> {
+        let res = self.0.map2_by_value(rhs.0, fun);
+        Prism(res, PhantomData)
     }
 }
 

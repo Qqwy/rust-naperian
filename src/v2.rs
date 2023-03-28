@@ -686,8 +686,8 @@ where
     R: core::ops::Mul<R, Output = R> + Clone,
 {
     let products = a.map2(b, |x: &R, y: &R| x.clone() * y.clone());
-    let result = products.into_iter().sum();
-    result
+    
+    products.into_iter().sum()
 }
 
 /// Calculate the inner product of two containers of the same shape.
@@ -766,14 +766,14 @@ mod tests {
         let v123 = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
         let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
-        println!("{:?}", three_by_two);
+        println!("{three_by_two:?}");
         let two_by_three = three_by_two.transpose();
-        println!("{:?}", two_by_three);
+        println!("{two_by_three:?}");
         assert_eq!(two_by_three, arr![arr![1, 4], arr![2, 5], arr![3, 6]]);
 
         let pair_of_vecs = Pair(arr![1, 2, 3], arr![10, 20, 30]);
         let vec_of_pairs = pair_of_vecs.transpose();
-        println!("{:?}", vec_of_pairs);
+        println!("{vec_of_pairs:?}");
         assert_eq!(vec_of_pairs, arr![Pair(1, 10), Pair(2, 20), Pair(3, 30)]);
     }
 
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     fn traversable() {
-        let pair = Pair(10, 20);
+        let _pair = Pair(10, 20);
         // let res = pair.traverse(increase);
         // println!("{:?}", pair);
         // let pair_of_vecs = Pair(arr![1,2,3], arr![10, 20, 30]);
@@ -797,7 +797,7 @@ mod tests {
         let v123 = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
         let res = innerp(&v123, &v456);
-        println!("{:?}", res);
+        println!("{res:?}");
     }
 
     #[test]
@@ -807,7 +807,7 @@ mod tests {
         let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
         let two_by_three = three_by_two.transpose();
         let res = matrixp(&two_by_three, &three_by_two);
-        println!("{:?}", res);
+        println!("{res:?}");
         assert_eq!(
             res,
             arr![arr![17, 22, 27], arr![22, 29, 36], arr![27, 36, 45]]

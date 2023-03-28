@@ -776,7 +776,7 @@ unsafe impl<T> Container for Scalar<T> {
 
 impl<T> New<T> for Scalar<T> {
     fn new(val: T) -> Self {
-        Scalar(val)
+        Scalar::hreplicate(val)
     }
 }
 
@@ -784,11 +784,20 @@ impl<T, Ts, N, Ns> New<T> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Container + Hyper<Dimensions = Ns, Elem = GenericArray<T, N>> + New<T>,
+    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>> + Container,
+    Ts::AmountOfElems: core::ops::Mul<N>,
+    Prod<Ts::AmountOfElems, N>: ArrayLength,
+    Ts::Orig: core::fmt::Debug,
+    Ts::Rank: core::ops::Add<B1>,
+    Add1<Ts::Rank>: ArrayLength,
+    Ts::Rank: core::ops::Add<B1> + ArrayLength,
+    Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
+    Sub1<Add1<Ts::Rank>>: ArrayLength,
+    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    T: Clone,
 {
     fn new(elem_val: T) -> Self {
-        let inner_new = Ts::new(elem_val);
-        Prism::build(inner_new)
+        Prism::hreplicate(elem_val)
     }
 }
 

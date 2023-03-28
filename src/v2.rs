@@ -16,6 +16,7 @@ use generic_array::{GenericArray, ArrayLength};
 /// There are however two drawbacks to this approach:
 /// - It is possible to accidentally implement the trait incorrectly for your type. As such, this is an _unsafe_ trait; implementers are responsible for making sure their implementation is sensible.
 /// - The compiler does not know that a `Vec<T>::Containing<X>` == `Vec<X>`. As such, you'll often have to re-state 'obvious' trait bounds.
+///   One solution here is to write bounds like `Pair<A>: Container<Containing<B> = Pair<B>>`.
 pub unsafe trait Container {
     /// The element type of the container
     ///
@@ -301,12 +302,12 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 ///
 /// As such, it is usually better idea to implement `map2` directly for your type (as seen in the example at the top).
 pub trait Mappable2<A, U>: Container {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U>;
+    fn map2<'b, B: 'b>(&self, rhs: &'b Self::Containing<B>, fun: impl FnMut(&A, &'b B) -> U) -> Self::Containing<U>;
     fn map2_by_value<B>(self, rhs: Self::Containing<B>, fun: impl FnMut(A, B) -> U) -> Self::Containing<U>;
 }
 
 impl<A, U> Mappable2<A, U> for Option<A> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<'b, B: 'b>(&self, rhs: &'b Self::Containing<B>, mut fun: impl FnMut(&A, &'b B) -> U) -> Self::Containing<U> {
         match (self, rhs) {
             (Some(left), Some(right)) => Some(fun(left, right)),
             (_, _) => None,
@@ -322,7 +323,7 @@ impl<A, U> Mappable2<A, U> for Option<A> {
 }
 
 impl<A, U> Mappable2<A, U> for Pair<A> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<'b, B: 'b>(&self, rhs: &'b Self::Containing<B>, mut fun: impl FnMut(&A, &'b B) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0, &rhs.0), fun(&self.1, &rhs.1))
     }
 
@@ -332,7 +333,7 @@ impl<A, U> Mappable2<A, U> for Pair<A> {
 }
 
 impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<'b, B: 'b>(&self, rhs: &'b Self::Containing<B>, mut fun: impl FnMut(&A, &'b B) -> U) -> Self::Containing<U> {
         GenericArray::generate(|pos| {
             let left = &self[pos];
             let right = &rhs[pos];
@@ -546,12 +547,15 @@ impl<T> Naperian<T> for Pair<T> {
     }
 }
 
-impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N> {
+impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N>
+where
+    Self: Container<Containing<Fin<N>> = GenericArray<Fin<N>, N>>,
+{
     type Log = Fin<N>;
     fn lookup(&self, index: Self::Log) -> &T {
         &self[index.val]
     }
-    fn positions() -> Self::Containing<Self::Log> {
+    fn positions() -> GenericArray<Self::Log, N> {
         GenericArray::generate(|pos| {
             // SAFETY: pos is in range [0..N)
             unsafe { Fin::new_unchecked(pos) }
@@ -605,12 +609,12 @@ pub trait Traversable<G, A, B>
 
 impl<G, A, B> Traversable<G, A, B> for Option<A>
 where
-    Self: Mappable<A>,
-    G: Mappable<Self::Containing<B>> + Container<Elem=B>,
-    Self::Containing<B>: New<B>,
-    <G as Container>::Containing<<Option<A> as Container>::Containing<B>>: New<Option<B>>,
+    Self: Mappable<A> + Container<Containing<B> = Option<B>>,
+    G: Mappable<Option<B>> + Container<Elem=B>,
+    Option<B>: New<B>,
+    G::Containing<Option<B>>: New<Option<B>>,
 {
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Self::Containing<B>> {
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Option<B>> {
         match self {
             None => {
                 New::new(None)
@@ -624,26 +628,14 @@ where
     }
 }
 
-trait ConcretePair<T> {
-    fn reify(pair: Pair<T>) -> Self;
-}
-
-impl<T> ConcretePair<T> for Pair<T> {
-    fn reify(pair: Pair<T>) -> Self {
-        pair
-    }
-}
-
 impl<G, A, B> Traversable<G, A, B> for Pair<A>
 where
-    Self: Mappable<A>,
-    G: Mappable<Self::Containing<B>> + Mappable2<B, Self::Containing<B>>+ Container<Elem=B, Containing<B> = G>,
-    Self::Containing<B>: ConcretePair<B>,
+    Self: Mappable<A> + Container<Containing<B> = Pair<B>>,
+    G: Mappable<Pair<B>> + Mappable2<B, Pair<B>> + Container<Elem=B, Containing<B> = G>,
 {
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>> {
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Pair<B>> {
         fun(&self.0).map2_by_value(fun(&self.1), |one: B, two: B| {
-            let pair = Pair(one, two);
-            ConcretePair::reify(pair)
+            Pair(one, two)
         })
     }
 }
@@ -772,47 +764,53 @@ where
         }).sum()
 }
 
-pub fn matrixp<Fga, Gfa, Hga, Fa, Ga, Ha, A, Fhga, Fha>(xss: &Fga, yss: &Gfa) -> Fha
+/// Calculates the matrix product of two matrices with the same element type `A`.
+/// Given a f×g matrix and a g×h matrix, returns a f×h matrix.
+///
+/// This is implemented by first transforming both matrices to a common f×h×g representation,
+/// and then mapping the inner product ([`innerp_orig`]) across the innermost g dimension to flatten it.
+///
+/// Compatibility of dimensions is fully determined at compile time.
+pub fn matrixp<Fhga, Fha, Fga, Gha, Hga, Fa, Ga, Ha, A>(xss: &Fga, yss: &Gha) -> Fha
 where
-    Fga: Clone + Container<Elem=Ga> + Container<Containing<Hga> = Fhga>,
-    Fga: Mappable<Hga>,
-    Hga: New<Ga> + Container<Containing<Ga> = Hga> + Mappable2<Ga, A> + Container<Containing<A> = Ha>,
-    Ga: Container + IntoIterator<Item = A> + Container<Containing<A> = Ga> + Mappable2<A, A>,
-    Gfa: Naperian<Fa> + Container<Elem=Fa>,
-    Fa: Naperian<A, Log=Gfa::Log> + Container<Elem=A>,
+    Fhga: Container<Elem=Hga, Containing<Hga> = Fhga> + Container<Containing<Ha> = Fha>,
+    Fhga: New<Fa::Containing<Gha::Containing<A>>> + Mappable2<Hga, Ha>,
+    Fga: Container<Elem=Ga, Containing<Ga> = Fga> + Container<Containing<Hga> = Fhga>,
+    Fga: Clone + Mappable<Hga>,
+    Hga: Container<Containing<Ga> = Hga> + Container<Containing<A> = Ha>,
+    Hga: New<Ga> + Mappable2<Ga, A>,
+    Ga: Container<Elem=A, Containing<A> = Ga>,
+    Ga: IntoIterator<Item = A> + Mappable2<A, A> + Naperian<A>,
+    Gha: Container<Elem=Fa> + Container<Containing<A> = Ga>,
+    Gha: Naperian<Fa, Log=Ga::Log>,
+    Fa: Container<Elem=A, Containing<A> = Fa>,
+    Fa: Naperian<A>,
+    Fa::Containing<Gha::Containing<A>>: Naperian<Gha::Containing<A>, Log = Fa::Log>,
     A: Clone + std::iter::Sum + std::ops::Mul<Output = A>,
-    Gfa::Containing<A>: Naperian<A, Log = Gfa::Log>,
-    Fa::Containing<Gfa::Containing<A>>: Naperian<Gfa::Containing<A>, Log = Gfa::Log>,
-    Fhga: New<Fa::Containing<Gfa::Containing<A>>> + Mappable2<Hga, Ha> + Container<Containing<Hga> = Fhga> + Container<Containing<Ha> = Fha>,
-
-    // F: Container<Elem=G::Containing<A>> + Mappable<H::Containing<G::Containing<A>>>,
-    // H::Containing<G::Containing<A>>: New<H::Containing<G::Containing<A>>>,
-    // G: Container<Elem=H>,
-    // H: Container<Elem=A>,
 {
-    let lifted_xss: Fhga = lifted_xss(xss.clone());
+    let lifted_xss: Fhga = lifted_xss(xss);
     let lifted_yss: Fhga = lifted_yss(yss);
-    lifted_xss.map2_by_value(lifted_yss, |left: Hga, right: Hga| {
-        left.map2(&right, innerp_orig)
+    lifted_xss.map2(&lifted_yss, |left: &Hga, right: &Hga| {
+        left.map2(right, innerp_orig)
     })
 }
 
-fn lifted_xss<F, G, H>(xss: F) -> F::Containing<H>
+fn lifted_xss<F, G, H>(xss: &F) -> F::Containing<H>
 where
-    F: Mappable<H> + Container<Elem = G>,
+    F: Clone + Mappable<H> + Container<Elem = G>,
     G: Container,
     H: New<G> + Container,
 {
-    xss.map_by_value(New::new)
+    xss.clone().map_by_value(New::new)
 }
 
 fn lifted_yss<A, F, G, H>(yss: &F) -> H
     where
-    H: New<G::Containing<F::Containing<A>>>,
     F: NaperianTranspose<G, A>,
-    <F as Container>::Containing<A>: Naperian<A, Log = F::Log>,
-    G: Naperian<A, Log = F::Log>, // + Container<Containing<<F as Container>::Containing<A>> = G>,
-    <G as Container>::Containing<<F as Container>::Containing<A>>: Naperian<<F as Container>::Containing<A>, Log = F::Log>,
+    F::Containing<A>: Naperian<A, Log = F::Log>,
+    G: Naperian<A>,
+    G::Containing<F::Containing<A>>: Naperian<F::Containing<A>, Log = G::Log>,
+    H: New<G::Containing<F::Containing<A>>>,
     A: Clone,
 {
     New::new(yss.transpose())
@@ -824,18 +822,18 @@ mod tests {
     use generic_array::arr;
     #[test]
     fn transpose() {
-        let v123 = arr![usize; 1,2,3];
-        let v456 = arr![usize; 4,5,6];
-        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![_;v123, v456];
+        let v123 = arr![1,2,3];
+        let v456 = arr![4,5,6];
+        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
         println!("{:?}", three_by_two);
         let two_by_three = three_by_two.transpose();
         println!("{:?}", two_by_three);
-        assert_eq!(two_by_three, arr![_; arr![usize; 1, 4], arr![usize; 2, 5], arr![usize; 3, 6]]);
+        assert_eq!(two_by_three, arr![arr![1, 4], arr![2, 5], arr![3, 6]]);
 
-        let pair_of_vecs = Pair(arr![i32; 1,2,3], arr![i32; 10, 20, 30]);
+        let pair_of_vecs = Pair(arr![1,2,3], arr![10, 20, 30]);
         let vec_of_pairs = pair_of_vecs.transpose();
         println!("{:?}", vec_of_pairs);
-        assert_eq!(vec_of_pairs, arr![_;Pair(1, 10), Pair(2, 20), Pair(3, 30)]);
+        assert_eq!(vec_of_pairs, arr![Pair(1, 10), Pair(2, 20), Pair(3, 30)]);
     }
 
     // pub fn increase<'a>(m: &'a usize) -> State<'a, usize, usize>{
@@ -855,11 +853,26 @@ mod tests {
 
     #[test]
     fn innerprod() {
-        let v123 = arr![usize; 1,2,3];
-        let v456 = arr![usize; 4,5,6];
+        let v123 = arr![1,2,3];
+        let v456 = arr![4,5,6];
         let res = innerp(&v123, &v456);
         println!("{:?}", res);
     }
+
+    #[test]
+    fn matrixprod() {
+        let v123: GenericArray<usize, _> = arr![1,2,3];
+        let v456 = arr![4,5,6];
+        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
+        let two_by_three = three_by_two.transpose();
+        let res = matrixp(&two_by_three, &three_by_two);
+        println!("{:?}", res);
+        assert_eq!(res, arr![arr![17, 22, 27], arr![22, 29, 36], arr![27, 36, 45]]);
+    }
+}
+
+pub fn matrixprod(two_by_three: GenericArray<GenericArray<usize, U2>, U3>, three_by_two: GenericArray<GenericArray<usize, U3>, U2>) -> GenericArray<GenericArray<usize, U3>, U3> {
+    matrixp(&two_by_three, &three_by_two)
 }
 
 // pub fn innerprod(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {

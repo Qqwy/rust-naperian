@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 const_format = "0.2.30"
+frunk = "0.4.1"
 # generic-array = "0.14.6"
 generic-array = { git = "https://github.com/fizyk20/generic-array.git", branch = "1.0" }
 sealed = "0.4.0"

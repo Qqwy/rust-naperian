@@ -761,6 +761,98 @@ where
     New::new(yss.transpose())
 }
 
+use frunk::hlist::{HList, HCons, HNil};
+
+pub trait Hyper {
+    type Dimensions: HList;
+    type Elem;
+}
+
+pub struct Scalar<T>(T);
+unsafe impl<T> Container for Scalar<T> {
+    type Elem = T;
+    type Containing<X> = Scalar<X>;
+}
+
+impl<T> Hyper for Scalar<T> {
+    type Dimensions = HNil;
+    type Elem = T;
+}
+
+impl<T> New<T> for Scalar<T> {
+    fn new(val: T) -> Self {
+        Scalar(val)
+    }
+}
+
+/// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
+/// but putting this restriction on the struct makes it impossible to implement certain traits.
+pub struct Prism<T, Ts, N, Ns>(GenericArray<Ts, N>, core::marker::PhantomData<(T, Ns)>)
+where
+    N: ArrayLength,
+    // Ts: Hyper<Dimensions = Ns>,
+    Ns: HList,
+;
+
+impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength,
+    Ns: HList,
+    Ts: Hyper<Dimensions = Ns>,
+{
+    pub fn new(vals: GenericArray<Ts, N>) -> Self {
+        Prism(vals, core::marker::PhantomData)
+    }
+}
+
+
+unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength,
+    Ts: Hyper<Dimensions = Ns> + Container<Elem = T>,
+    Ns: HList,
+{
+    type Elem = T;
+    type Containing<X> = Prism<X, Ts::Containing<X>, N, Ns>;
+}
+
+impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
+where
+    Ts: Hyper<Dimensions = Ns>,
+    Ns: HList,
+    N: ArrayLength,
+{
+    type Dimensions = HCons<N, Ns>;
+    type Elem = Ts::Elem;
+}
+
+impl<T, A> Mappable<A> for Scalar<T> {
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        Scalar(fun(&self.0))
+    }
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        Scalar(fun(self.0))
+    }
+}
+
+impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength,
+    Ts: Hyper<Dimensions = Ns> + Mappable<A> + Container<Elem=T>,
+    Ts::Containing<A>: Hyper<Dimensions = Ns>,
+    Ns: HList,
+{
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map(|inner| inner.map(&mut fun));
+        Prism::new(res)
+    }
+
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map_by_value(|inner| inner.map_by_value(&mut fun));
+        Prism::new(res)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

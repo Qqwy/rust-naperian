@@ -776,14 +776,14 @@ pub fn matrixp<Fga, Gfa, Hga, Fa, Ga, Ha, A, Fhga, Fha>(xss: &Fga, yss: &Gfa) ->
 where
     Fga: Clone + Container<Elem=Ga> + Container<Containing<Hga> = Fhga>,
     Fga: Mappable<Hga>,
-    Hga: New<Ga>,
-    Ga: Container,
+    Hga: New<Ga> + Container<Containing<Ga> = Hga> + Mappable2<Ga, A> + Container<Containing<A> = Ha>,
+    Ga: Container + IntoIterator<Item = A> + Container<Containing<A> = Ga> + Mappable2<A, A>,
     Gfa: Naperian<Fa> + Container<Elem=Fa>,
     Fa: Naperian<A, Log=Gfa::Log> + Container<Elem=A>,
-    A: Clone,
+    A: Clone + std::iter::Sum + std::ops::Mul<Output = A>,
     Gfa::Containing<A>: Naperian<A, Log = Gfa::Log>,
     Fa::Containing<Gfa::Containing<A>>: Naperian<Gfa::Containing<A>, Log = Gfa::Log>,
-    Fhga: New<Fa::Containing<Gfa::Containing<A>>>,
+    Fhga: New<Fa::Containing<Gfa::Containing<A>>> + Mappable2<Hga, Ha> + Container<Containing<Hga> = Fhga> + Container<Containing<Ha> = Fha>,
 
     // F: Container<Elem=G::Containing<A>> + Mappable<H::Containing<G::Containing<A>>>,
     // H::Containing<G::Containing<A>>: New<H::Containing<G::Containing<A>>>,
@@ -792,7 +792,9 @@ where
 {
     let lifted_xss: Fhga = lifted_xss(xss.clone());
     let lifted_yss: Fhga = lifted_yss(yss);
-    todo!()
+    lifted_xss.map2_by_value(lifted_yss, |left: Hga, right: Hga| {
+        left.map2(&right, innerp_orig)
+    })
 }
 
 fn lifted_xss<F, G, H>(xss: F) -> F::Containing<H>

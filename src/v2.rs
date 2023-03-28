@@ -634,15 +634,15 @@ impl<T> ConcretePair<T> for Pair<T> {
     }
 }
 
-impl<G, A, B: Clone> Traversable<G, A, B> for Pair<A>
+impl<G, A, B> Traversable<G, A, B> for Pair<A>
 where
     Self: Mappable<A>,
     G: Mappable<Self::Containing<B>> + Mappable2<B, Self::Containing<B>>+ Container<Elem=B, Containing<B> = G>,
     Self::Containing<B>: ConcretePair<B>,
 {
     fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>> {
-        fun(&self.0).map2(&fun(&self.1), &|one: &B, two: &B| {
-            let pair = Pair(one.clone(), two.clone());
+        fun(&self.0).map2_by_value(fun(&self.1), |one: B, two: B| {
+            let pair = Pair(one, two);
             ConcretePair::reify(pair)
         })
     }
@@ -740,21 +740,80 @@ unsafe impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
     }
 }
 
-// pub trait InnerProduct {
-//     fn innerp(&self, ) -> usize;
-// }
-/// Calculate the inner product of two containers of the same shape.
+/// Version of innerp precisely following the Naperian paper.
 ///
-/// The inner product is the sum of multiplying all elements pairwise.
-pub fn innerp<A, R>(a: &A, b: &A) -> R
+/// This is evaluated more strictly than desired; it will first create an intermediate container
+/// with all the products, and then sum the elements in this container.
+pub fn innerp_orig<A, R>(a: &A, b: &A) -> R
     where
     A: Mappable2<R, R> + Container<Containing<R> = A> + IntoIterator,
     R: std::iter::Sum<<A as std::iter::IntoIterator>::Item>,
-    R: core::ops::Mul<R, Output = R> + Copy,
+    R: core::ops::Mul<R, Output = R> + Clone,
 {
-    let products = a.map2(b, &|x: &R, y: &R| { (*x) * (*y) });
+    let products = a.map2(b, |x: &R, y: &R| { x.clone() * y.clone() });
     let result = products.into_iter().sum();
     result
+}
+
+/// Calculate the inner product of two containers of the same shape.
+///
+/// The inner product is the sum of multiplying all elements pairwise.
+pub fn innerp<'a, A, R: 'a>(a: &'a A, b: &'a A) -> R
+where
+    &'a A: IntoIterator<Item = &'a R>,
+    A: Container<Containing<R> = A> + IntoIterator,
+    &'a R: core::ops::Mul<&'a R, Output = R>,
+    R: core::iter::Sum,
+{
+    a.into_iter()
+        .zip(b.into_iter())
+        .map(|(x, y)| {
+            x * y
+        }).sum()
+}
+
+pub fn matrixp<Fga, Gfa, Hga, Fa, Ga, Ha, A, Fhga, Fha>(xss: &Fga, yss: &Gfa) -> Fha
+where
+    Fga: Clone + Container<Elem=Ga> + Container<Containing<Hga> = Fhga>,
+    Fga: Mappable<Hga>,
+    Hga: New<Ga>,
+    Ga: Container,
+    Gfa: Naperian<Fa> + Container<Elem=Fa>,
+    Fa: Naperian<A, Log=Gfa::Log> + Container<Elem=A>,
+    A: Clone,
+    Gfa::Containing<A>: Naperian<A, Log = Gfa::Log>,
+    Fa::Containing<Gfa::Containing<A>>: Naperian<Gfa::Containing<A>, Log = Gfa::Log>,
+    Fhga: New<Fa::Containing<Gfa::Containing<A>>>,
+
+    // F: Container<Elem=G::Containing<A>> + Mappable<H::Containing<G::Containing<A>>>,
+    // H::Containing<G::Containing<A>>: New<H::Containing<G::Containing<A>>>,
+    // G: Container<Elem=H>,
+    // H: Container<Elem=A>,
+{
+    let lifted_xss: Fhga = lifted_xss(xss.clone());
+    let lifted_yss: Fhga = lifted_yss(yss);
+    todo!()
+}
+
+fn lifted_xss<F, G, H>(xss: F) -> F::Containing<H>
+where
+    F: Mappable<H> + Container<Elem = G>,
+    G: Container,
+    H: New<G> + Container,
+{
+    xss.map_by_value(New::new)
+}
+
+fn lifted_yss<A, F, G, H>(yss: &F) -> H
+    where
+    H: New<G::Containing<F::Containing<A>>>,
+    F: NaperianTranspose<G, A>,
+    <F as Container>::Containing<A>: Naperian<A, Log = F::Log>,
+    G: Naperian<A, Log = F::Log>, // + Container<Containing<<F as Container>::Containing<A>> = G>,
+    <G as Container>::Containing<<F as Container>::Containing<A>>: Naperian<<F as Container>::Containing<A>, Log = F::Log>,
+    A: Clone,
+{
+    New::new(yss.transpose())
 }
 
 #[cfg(test)]
@@ -800,3 +859,18 @@ mod tests {
         println!("{:?}", res);
     }
 }
+
+// pub fn innerprod(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+//     // use generic_array::arr;
+//     // let v123 = arr![usize; 1,2,3];
+//     // let v456 = arr![usize; 4,5,6];
+//     innerp(&v123, &v456)
+// }
+
+// // pub fn innerprod_orig() {
+// pub fn innerprod_orig(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+//     // use generic_array::arr;
+//     // let v123 = arr![usize; 1,2,3];
+//     // let v456 = arr![usize; 4,5,6];
+//     innerp_orig(&v123, &v456)
+// }

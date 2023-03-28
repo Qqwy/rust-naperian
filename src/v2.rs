@@ -780,6 +780,18 @@ impl<T> New<T> for Scalar<T> {
     }
 }
 
+impl<T, Ts, N, Ns> New<T> for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength + NonZero,
+    Ns: HList,
+    Ts: Container + Hyper<Dimensions = Ns, Elem = GenericArray<T, N>> + New<T>,
+{
+    fn new(elem_val: T) -> Self {
+        let inner_new = Ts::new(elem_val);
+        Prism::build(inner_new)
+    }
+}
+
 /// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -805,6 +817,8 @@ where
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
     GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    T: Clone,
+
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Prism")
@@ -829,7 +843,7 @@ where
 unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Container<Elem = T>,
+    Ts: Hyper<Dimensions = Ns> + Container,
     Ns: HList,
 {
     type Elem = T;
@@ -864,6 +878,8 @@ pub trait Hyper {
     fn dim(&self) -> usize;
 
     fn first(&self) -> &Self::Elem;
+
+    fn hreplicate(elem: Self::Elem) -> Self;
 }
 
 impl<T> Hyper for Scalar<T> {
@@ -890,6 +906,10 @@ impl<T> Hyper for Scalar<T> {
     fn dimensions() -> GenericArray<usize, Self::Rank> {
         Default::default()
     }
+
+    fn hreplicate(elem: Self::Elem) -> Self {
+        Scalar(elem)
+    }
 }
 
 
@@ -907,6 +927,7 @@ where
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
     GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    T: Clone,
 {
     type Dimensions = HCons<N, Ns>;
     type Elem = T;
@@ -919,6 +940,7 @@ where
     fn dim(&self) -> usize {
         N::USIZE
     }
+
     fn first(&self) -> &Self::Elem {
         let ga = self.0.first();
         // Unwrap SAFETY: N is restricted to NonZero
@@ -934,6 +956,12 @@ where
 
     fn dimensions() -> GenericArray<usize, Self::Rank> {
         Ts::dimensions().append(N::USIZE)
+    }
+
+    fn hreplicate(elem: Self::Elem) -> Self {
+        // todo!()
+        // Prism::new(elem)
+        Prism(Ts::hreplicate(New::new(elem)), core::marker::PhantomData)
     }
 }
 
@@ -1041,6 +1069,10 @@ mod tests {
         println!("{:?}", val.dim());
         println!("{:?}", val.amount_of_elems());
         println!("{:?}", first);
+
+        let xs = Prism::hreplicate(42usize);
+        println!("xs: {:?}", xs);
+        assert!(xs > val);
     }
 
     // #[test]

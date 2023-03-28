@@ -241,7 +241,11 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 /// }
 /// ```
 ///
-/// # Rationale for type-happy folk
+/// # On FnMut
+/// Just like the unary [`Mappable`], this trait method takes a [`FnMut`] rather than a plain [`Fn`],
+/// for the same reason as listed there.
+///
+/// # Rationale for type enthousiasts
 ///
 /// Indeed, [`Mappable2::map2`] is the same as the `liftA2` operation you might know from Haskell's Applicative typeclass.
 ///
@@ -282,11 +286,11 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 ///
 /// As such, it is usually better idea to implement `map2` directly for your type (as seen in the example at the top).
 pub trait Mappable2<A, U>: Container {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U>;
+    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U>;
 }
 
 impl<A, U> Mappable2<A, U> for Option<A> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
         match (self, rhs) {
             (Some(left), Some(right)) => Some(fun(left, right)),
             (_, _) => None,
@@ -295,13 +299,13 @@ impl<A, U> Mappable2<A, U> for Option<A> {
 }
 
 impl<A, U> Mappable2<A, U> for Pair<A> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0, &rhs.0), fun(&self.1, &rhs.1))
     }
 }
 
 impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
-    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
+    fn map2<B>(&self, rhs: &Self::Containing<B>, mut fun: impl FnMut(&A, &B) -> U) -> Self::Containing<U> {
         GenericArray::generate(|pos| {
             let left = &self[pos];
             let right = &rhs[pos];
@@ -315,11 +319,11 @@ impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
 /// This trait is very similar to [`Mappable`] and (especially) [`Mappable2`].
 /// In particular, the same implementation trade-offs apply w.r.t. [`Mappable2`].
 pub trait Mappable3<A, U>: Container {
-    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: &impl Fn(&A, &B, &C) -> U) -> Self::Containing<U>;
+    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U>;
 }
 
 impl<A, U> Mappable3<A, U> for Option<A> {
-    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: &impl Fn(&A, &B, &C) -> U) -> Self::Containing<U> {
+    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, mut fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U> {
         match (self, second, third) {
             (Some(one), Some(two), Some(three)) => Some(fun(one, two, three)),
             (_, _, _) => None,
@@ -328,14 +332,14 @@ impl<A, U> Mappable3<A, U> for Option<A> {
 }
 
 impl<A, U> Mappable3<A, U> for Pair<A> {
-    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: &impl Fn(&A, &B, &C) -> U) -> Self::Containing<U> {
+    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, mut fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0, &second.0, &third.0), fun(&self.1, &second.1, &third.1))
 
     }
 }
 
 impl<A, U, N: ArrayLength> Mappable3<A, U> for GenericArray<A, N> {
-    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, fun: &impl Fn(&A, &B, &C) -> U) -> Self::Containing<U> {
+    fn map3<B, C>(&self, second: &Self::Containing<B>, third: &Self::Containing<C>, mut fun: impl FnMut(&A, &B, &C) -> U) -> Self::Containing<U> {
         GenericArray::generate(|pos| {
             let one = &self[pos];
             let two = &second[pos];

@@ -4,7 +4,6 @@ use fin::Fin;
 use generic_array::sequence::GenericSequence;
 use generic_array::{ArrayLength, GenericArray};
 use typenum::consts::*;
-use typenum::Unsigned;
 
 /// Trait which makes higher-kindred types tick
 ///
@@ -18,8 +17,12 @@ use typenum::Unsigned;
 /// - It is possible to accidentally implement the trait incorrectly for your type. As such, this is an _unsafe_ trait; implementers are responsible for making sure their implementation is sensible.
 /// - The compiler does not know that a `Vec<T>::Containing<X>` == `Vec<X>`. As such, you'll often have to re-state 'obvious' trait bounds.
 ///   One solution here is to write bounds like `Pair<A>: Container<Containing<B> = Pair<B>>`.
+///
+/// # Safety
+/// For instances to make sense, implementors need to follow the rules for the two associated types mentioned below to the letter.
 pub unsafe trait Container {
-    /// The element type of the container
+    /// The element type of the container.
+    /// For a type Foo<T> this has to be T.
     ///
     /// # Examples:
     /// For a Vec<T>, this is T.
@@ -28,6 +31,7 @@ pub unsafe trait Container {
 
     /// The container type with its element type
     /// changed to X.
+    /// For a type Foo<T> this has to be Foo<X>
     ///
     /// # Examples:
     /// For a Vec<T>, this is Vec<X>
@@ -658,18 +662,18 @@ where
 ///
 /// Conceptually Dimension is a supertrait of [`Mappable`], [`Apply`], [`New`], [`Mappable2`], [`Mappable3`], [`IntoIterator`] and  [`Traversable`].
 /// But making it a 'true' supertrait would require a very large number of (usually unconstrained and therefore un-inferrable) type parameters.
-/// Instead, this trait has been marked as unsafe: Only implement it for types for which above traits also have been implemented!
-pub unsafe trait Dimension: Container {
+/// Instead, the other bounds are introduced only for the particular operations where they are required.
+pub trait Dimension: Container {
     fn size(&self) -> usize;
 }
 
-unsafe impl<T> Dimension for Pair<T> {
+impl<T> Dimension for Pair<T> {
     fn size(&self) -> usize {
         2
     }
 }
 
-unsafe impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
+impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
     fn size(&self) -> usize {
         N::USIZE
     }

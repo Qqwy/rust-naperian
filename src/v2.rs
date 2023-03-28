@@ -1,10 +1,13 @@
 pub mod fin;
+use std::mem::ManuallyDrop;
+
 use fin::Fin;
 
 use generic_array::sequence::{GenericSequence, Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::{Unsigned, NonZero};
+use typenum::U;
 use typenum::operator_aliases::{Prod, Add1, Sub1};
 
 /// A shorter alias for Array
@@ -903,7 +906,7 @@ pub trait Hyper: Sized {
 
     /// Reinterprets a one-dimensional array as this Hyper shape.
     ///
-    /// This is a zero-cost operation. It compiles down to a no-op.
+    /// This is a cheap operation. Currently it requires a single move.
     fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self;
 
     /// Turns one Hyper into another.
@@ -911,7 +914,7 @@ pub trait Hyper: Sized {
     /// Sugar over calling Other::from_flat(self.into_flat()).
     /// c.f. [`Hyper::into_flat`] and [`Hyper::from_flat`].
     ///
-    /// This is a zero-cost operation. It compiles down to a no-op.
+    /// This is a cheap operation. Currently it requires a single move.
     fn reshape<Other>(self) -> Other
         where
         Other: Hyper<Elem = Self::Elem, AmountOfElems = Self::AmountOfElems>
@@ -956,7 +959,6 @@ impl<T> Hyper for Scalar<T> {
         Scalar(elem)
     }
 }
-
 
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
@@ -1008,6 +1010,8 @@ where
         // Prism::new(elem)
         Prism(Ts::hreplicate(New::new(elem)), core::marker::PhantomData)
     }
+
+
     fn into_flat(self) -> Array<Self::Elem, Self::AmountOfElems> {
         // SAFETY: GenericArray has the following guarantees:
         // - It stores `Self::Elem` types consecutively in memory, with proper alignment
@@ -1056,6 +1060,9 @@ where
     }
 }
 
+pub mod aliases {
+    use super::{Prism, Scalar, Array, HNil, HCons};
+
 /// Vect, a Vector with a statically-known size.
 ///
 /// This is a type alias.
@@ -1079,16 +1086,43 @@ pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<R
 /// only that it implements the [`Hyper`] trait which contains many common operations.
 pub type Tensor3<T, Slices, Rows, Cols> = Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
 
-use typenum::U;
-pub type VectC<T, const N: usize> = Prism<T, Scalar<Array<T, U::<N>>>, U::<N>, HNil>;
-pub type MatC<T, const ROWS: usize, const COLS: usize> = Prism<T, Vect<Array<T, U::<COLS>>, U::<ROWS>>, U::<COLS>, HCons<U::<ROWS>, HNil>>;
-pub type Tensor3C<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<T, Mat<Array<T, U::<COLS>>, U::<SLICES>, U::<ROWS>>, U::<COLS>, HCons<U::<ROWS>, HCons<U::<SLICES>, HNil>>>;
+}
 
-pub fn foo() -> Tensor3<usize, U2, U2, U3> {
-    let v: Vect<usize, U3> = Prism::build(Scalar::new(arr![1,2,3]));
-    let mat: Mat<usize, U2, U3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
+pub mod const_aliases {
+use typenum::U;
+use super::{Prism, Scalar, Array, HNil, HCons};
+
+/// Vect, a Vector with a statically-known size.
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
+pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U::<N>>>, U::<N>, HNil>;
+
+/// Mat, a Matrix with a statically-known dimensions (rows, colums).
+///
+/// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
+pub type Mat<T, const ROWS: usize, const COLS: usize> = Prism<T, Vect<Array<T, U::<COLS>>, ROWS>, U::<COLS>, HCons<U::<ROWS>, HNil>>;
+
+/// Vect, a Vector with a statically-known size.
+///
+/// This is a type alias.
+/// During normal usage you do not need to understand the backing type,
+/// only that it implements the [`Hyper`] trait which contains many common operations.
+pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<T, Mat<Array<T, U::<COLS>>, SLICES, ROWS>, U::<COLS>, HCons<U::<ROWS>, HCons<U::<SLICES>, HNil>>>;
+
+}
+use const_aliases::*;
+
+pub fn foo() -> Tensor3<usize, 2, 2, 3> {
+    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1,2,3]));
+    let mat: Mat<usize, 2, 3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
     // let tens: Tensor3<usize, U2, U3, U1> = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
-    let tens: Tensor3<usize, U2, U2, U3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]], arr![arr![7,8,9], arr![10, 11, 12]]]))));
+    let tens: Tensor3<usize, 2, 2, 3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]], arr![arr![7,8,9], arr![10, 11, 12]]]))));
     println!("{:?}", &mat);
     println!("{:?}", &tens);
     let flat: &Array<usize, U12> = unsafe { core::mem::transmute(&tens) };
@@ -1210,23 +1244,23 @@ mod tests {
     fn flattening() {
         let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
         println!("{:?}", &flat);
-        let tens = Tensor3::<usize, U2, U2, U3>::from_flat(flat);
+        let tens = Tensor3::<usize, 2, 2, 3>::from_flat(flat);
         println!("{:?}", &tens);
 
-        let four_by_three: Mat<usize, U4, U3> = tens.reshape();
+        let four_by_three: Mat<usize, 4, 3> = tens.reshape();
         println!("{:?}", &four_by_three);
-        let three_by_four: Mat<usize, U3, U4> = four_by_three.reshape();
+        let three_by_four: Mat<usize, 3, 4> = four_by_three.reshape();
         println!("{:?}", &three_by_four);
 
         let flat2 = arr!["hello", "world", "how", "are", "you", "doing"];
-        let mat = Mat::<&'static str, U3, U2>::from_flat(flat2);
+        let mat = Mat::<&'static str, 3, 2>::from_flat(flat2);
         println!("{:?}", &mat);
     }
 }
 
-pub fn reshape_example(flat: Array<usize, U::<20>>) -> Tensor3C::<usize, 2, 2, 5> {
+pub fn reshape_example(flat: Array<usize, U::<20>>) -> Tensor3::<usize, 2, 2, 5> {
     // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
-    let tens = Tensor3C::<usize, 2, 2, 5>::from_flat(flat);
+    let tens = Tensor3::<usize, 2, 2, 5>::from_flat(flat);
     tens
     // println!("{:?}", &tens);
     // let vec: MatC<usize, 6, 2> = tens.reshape();

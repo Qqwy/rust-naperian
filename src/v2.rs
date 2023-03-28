@@ -46,6 +46,7 @@ unsafe impl<T> Container for Box<T> {
     type Containing<X> = Box<X>;
 }
 
+// TODO implement IntoIterator for Pair
 /// The simple example type from the Naperian paper.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Pair<T>(T, T);
@@ -66,21 +67,49 @@ unsafe impl<T, N> Container for GenericArray<T, N>
 /// Transform a container by running a unary function element-wise on its contents.
 ///
 /// Also known as 'Functor'.
+///
+/// Note that different from the usual, functionally pure, definition, we allow you to pass a FnMut.
+/// (a function or closure which may contain mutable state).
+/// This is done to make it easier to use Mappable in the wider Rust ecosystem.
+/// Using [`Mappable::map`] with (locally) mutable state is a much more
+/// lightweight alternative (for both the compiler and the unsuspecting programmer)
+/// than requiring Traversable.
+///
+///
+/// # Examples
+/// Transform each element using a unary function:
+/// ```rust
+/// use naperian::v2::Mappable;
+/// use generic_array::arr;
+/// let v123 = arr![usize; 1,2,3];
+/// assert_eq!(v123.map(|x| x + 1), arr![usize; 2, 3, 4]);
+/// ```
+///
+/// Using mutable state as a 'lightweight traversable':
+///```rust
+/// use naperian::v2::Mappable;
+/// use generic_array::arr;
+/// let v123 = arr![usize; 1,2,3];
+/// let mut sum = 0;
+/// let prefix_sums = v123.map(|val| {
+///     sum += val;
+///     sum
+/// });
+/// assert_eq!(prefix_sums, arr![usize; 1, 3, 6]);
+/// assert_eq!(sum, 6);
+///```
 pub trait Mappable<U>: Container {
-    fn map(&self, fun: impl Fn(&Self::Elem) -> U) -> Self::Containing<U>;
+    fn map(&self, fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U>;
 }
 
 impl<T, U> Mappable<U> for Option<T> {
-    fn map(&self, fun: impl Fn(&Self::Elem) -> U) -> Self::Containing<U> {
-        match self {
-            None => None,
-            Some(val) => Some(fun(val))
-        }
+    fn map(&self, fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
+        Option::map(self.as_ref(), fun)
     }
 }
 
 impl<T, U> Mappable<U> for Pair<T> {
-    fn map(&self, fun: impl Fn(&Self::Elem) -> U) -> Self::Containing<U> {
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
         Pair(fun(&self.0), fun(&self.1))
     }
 }
@@ -89,7 +118,7 @@ impl<T, U, N> Mappable<U> for GenericArray<T, N>
 where
     N: ArrayLength,
 {
-    fn map(&self, fun: impl Fn(&Self::Elem) -> U) -> Self::Containing<U> {
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
         GenericArray::generate(|pos| {
             let val = &self[pos];
             fun(val)
@@ -201,7 +230,7 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 ///
 /// Implementing this is usually very straightforward.
 /// Here is the implementation for Option:
-/// ```rust
+/// ```ignore
 /// impl<A, U> Mappable2<A, U> for Option<A> {
 ///    fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
 ///        match (self, rhs) {
@@ -220,7 +249,7 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 /// Mappable2 can always be implemented for containers implementing [`Apply`] and [`New`] (or [`NewFrom`]),
 /// by currying `fun` and leveraging [`New::new`] ([`NewFrom::new_from`]) and [`Apply::ap`]:
 ///
-/// ```rust
+/// ```ignore
 /// impl<A: Clone, U> Mappable2<A, U> for Option<A> {
 ///     fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
 ///         let curried_fun = |lhs: &A| {
@@ -234,7 +263,7 @@ impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N>
 ///
 /// But note that we need to clone `lhs` inside `curried_fun` to make the borrow checker happy.
 /// Alternatively, we could use some unsafe code because we know that we are immediately running the full closure:
-/// ```rust
+/// ```ignore
 /// impl<A, U> Mappable2<A, U> for Option<A> {
 ///     fn map2<B>(&self, rhs: &Self::Containing<B>, fun: &impl Fn(&A, &B) -> U) -> Self::Containing<U> {
 ///         let curried_fun = |lhs: &A| {
@@ -666,6 +695,8 @@ unsafe impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
 //     fn innerp(&self, ) -> usize;
 // }
 /// Calculate the inner product of two containers of the same shape.
+///
+/// The inner product is the sum of multiplying all elements pairwise.
 pub fn innerp<A, R>(a: &A, b: &A) -> R
     where
     A: Mappable2<R, R> + Container<Containing<R> = A> + IntoIterator,

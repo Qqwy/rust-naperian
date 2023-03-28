@@ -7,6 +7,10 @@ use typenum::consts::*;
 use typenum::{Unsigned, NonZero};
 use typenum::operator_aliases::{Prod, Add1, Sub1};
 
+/// A shorter alias for Array
+/// since we use it so prevalently in this crate.
+type Array<T, N> = GenericArray<T, N>;
+
 /// Trait which makes higher-kindred types tick
 ///
 /// Rust has no concept of 'higher kinds' but only of concrete types.
@@ -66,12 +70,12 @@ unsafe impl<T> Container for Pair<T> {
     type Containing<X> = Pair<X>;
 }
 
-unsafe impl<T, N> Container for GenericArray<T, N>
+unsafe impl<T, N> Container for Array<T, N>
 where
     N: ArrayLength,
 {
     type Elem = T;
-    type Containing<X> = GenericArray<X, N>;
+    type Containing<X> = Array<X, N>;
 }
 
 /// Transform a container by running a unary function element-wise on its contents.
@@ -134,12 +138,12 @@ impl<T, U> Mappable<U> for Pair<T> {
     }
 }
 
-impl<T, U, N> Mappable<U> for GenericArray<T, N>
+impl<T, U, N> Mappable<U> for Array<T, N>
 where
     N: ArrayLength,
 {
     fn map(&self, mut fun: impl FnMut(&Self::Elem) -> U) -> Self::Containing<U> {
-        GenericArray::generate(|pos| {
+        Array::generate(|pos| {
             let val = &self[pos];
             fun(val)
         })
@@ -189,15 +193,15 @@ impl<T> NewFrom<T> for Pair<T> {
     }
 }
 
-impl<T: Clone, N: ArrayLength> New<T> for GenericArray<T, N> {
+impl<T: Clone, N: ArrayLength> New<T> for Array<T, N> {
     fn new(elem_val: T) -> Self {
-        GenericArray::generate(|_pos| elem_val.clone())
+        Array::generate(|_pos| elem_val.clone())
     }
 }
 
-impl<T, N: ArrayLength> NewFrom<T> for GenericArray<T, N> {
+impl<T, N: ArrayLength> NewFrom<T> for Array<T, N> {
     fn new_from(mut fun: impl FnMut() -> T) -> Self {
-        GenericArray::generate(|_pos| fun())
+        Array::generate(|_pos| fun())
     }
 }
 
@@ -227,9 +231,9 @@ impl<A, B, F: Fn(&A) -> B> Apply<A, B, F> for Pair<F> {
     }
 }
 
-impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for GenericArray<F, N> {
+impl<A, B, F: Fn(&A) -> B, N: ArrayLength> Apply<A, B, F> for Array<F, N> {
     fn ap(&self, vals: &Self::Containing<A>) -> Self::Containing<B> {
-        GenericArray::generate(|pos| {
+        Array::generate(|pos| {
             let fun = &self[pos];
             let val = &vals[pos];
             fun(val)
@@ -351,13 +355,13 @@ impl<A, U> Mappable2<A, U> for Pair<A> {
     }
 }
 
-impl<A, U, N: ArrayLength> Mappable2<A, U> for GenericArray<A, N> {
+impl<A, U, N: ArrayLength> Mappable2<A, U> for Array<A, N> {
     fn map2<'b, B: 'b>(
         &self,
         rhs: &'b Self::Containing<B>,
         mut fun: impl FnMut(&A, &'b B) -> U,
     ) -> Self::Containing<U> {
-        GenericArray::generate(|pos| {
+        Array::generate(|pos| {
             let left = &self[pos];
             let right = &rhs[pos];
             fun(left, right)
@@ -446,14 +450,14 @@ impl<A, U> Mappable3<A, U> for Pair<A> {
     }
 }
 
-impl<A, U, N: ArrayLength> Mappable3<A, U> for GenericArray<A, N> {
+impl<A, U, N: ArrayLength> Mappable3<A, U> for Array<A, N> {
     fn map3<B, C>(
         &self,
         second: &Self::Containing<B>,
         third: &Self::Containing<C>,
         mut fun: impl FnMut(&A, &B, &C) -> U,
     ) -> Self::Containing<U> {
-        GenericArray::generate(|pos| {
+        Array::generate(|pos| {
             let one = &self[pos];
             let two = &second[pos];
             let three = &third[pos];
@@ -511,22 +515,22 @@ impl<T> Naperian<T> for Pair<T> {
     }
 }
 
-impl<T, N: ArrayLength> Naperian<T> for GenericArray<T, N>
+impl<T, N: ArrayLength> Naperian<T> for Array<T, N>
 where
-    Self: Container<Containing<Fin<N>> = GenericArray<Fin<N>, N>>,
+    Self: Container<Containing<Fin<N>> = Array<Fin<N>, N>>,
 {
     type Log = Fin<N>;
     fn lookup(&self, index: Self::Log) -> &T {
         &self[index.val()]
     }
-    fn positions() -> GenericArray<Self::Log, N> {
-        GenericArray::generate(|pos| {
+    fn positions() -> Array<Self::Log, N> {
+        Array::generate(|pos| {
             // SAFETY: pos is in range [0..N)
             unsafe { Fin::new_unchecked(pos) }
         })
     }
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
-        GenericArray::generate(|pos| {
+        Array::generate(|pos| {
             // SAFETY: pos is in range [0..N)
             let fin = unsafe { Fin::new_unchecked(pos) };
             fun(fin)
@@ -675,7 +679,7 @@ impl<T> Dimension for Pair<T> {
     }
 }
 
-impl<T, N: ArrayLength> Dimension for GenericArray<T, N> {
+impl<T, N: ArrayLength> Dimension for Array<T, N> {
     fn size(&self) -> usize {
         N::USIZE
     }
@@ -784,7 +788,7 @@ impl<T, Ts, N, Ns> New<T> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>> + Container,
+    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>> + Container,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
@@ -793,7 +797,7 @@ where
     Ts::Rank: core::ops::Add<B1> + ArrayLength,
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
-    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
     fn new(elem_val: T) -> Self {
@@ -815,7 +819,7 @@ impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
@@ -825,7 +829,7 @@ where
     Ts::Rank: core::ops::Add<B1> + ArrayLength,
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
-    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 
 {
@@ -841,7 +845,7 @@ impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
 {
     pub fn build(vals: Ts) -> Self {
         Prism(vals, core::marker::PhantomData)
@@ -878,9 +882,9 @@ pub trait Hyper {
         Self::Rank::USIZE
     }
 
-    fn dimensions() -> GenericArray<usize, Self::Rank>;
+    fn dimensions() -> Array<usize, Self::Rank>;
 
-    // fn dimensions() -> GenericArray<usize, Self::Rank> {
+    // fn dimensions() -> Array<usize, Self::Rank> {
 
     // }
 
@@ -912,7 +916,7 @@ impl<T> Hyper for Scalar<T> {
         &self.0
     }
 
-    fn dimensions() -> GenericArray<usize, Self::Rank> {
+    fn dimensions() -> Array<usize, Self::Rank> {
         Default::default()
     }
 
@@ -924,7 +928,7 @@ impl<T> Hyper for Scalar<T> {
 
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
-    Ts: Hyper<Dimensions = Ns, Elem=GenericArray<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
     Ns: HList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
@@ -935,12 +939,12 @@ where
     Ts::Rank: core::ops::Add<B1> + ArrayLength,
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
-    GenericArray<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
     type Dimensions = HCons<N, Ns>;
     type Elem = T;
-    // type Inner = GenericArray<T, N>;
+    // type Inner = Array<T, N>;
     type Orig = Ts::Orig;
     type Rank = Add1<Ts::Rank>;
 
@@ -963,7 +967,7 @@ where
         &self.0.inner()
     }
 
-    fn dimensions() -> GenericArray<usize, Self::Rank> {
+    fn dimensions() -> Array<usize, Self::Rank> {
         Ts::dimensions().append(N::USIZE)
     }
 
@@ -1001,15 +1005,51 @@ where
     }
 }
 
+/// Vect, a rank-1 tensor.
+pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
+pub type Mat<T, R, C> = Prism<T, Vect<Array<T, C>, R>, C, HCons<R, HNil>>;
+pub type Tensor3<T, S, R, C> = Prism<T, Mat<Array<T, C>, S, R>, C, HCons<R, HCons<S, HNil>>>;
+
+pub fn foo() {
+    use generic_array::arr;
+    let v: Vect<usize, U3> = Prism::build(Scalar::new(arr![1,2,3]));
+    let mat: Mat<usize, U2, U3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
+    // let tens: Tensor3<usize, U2, U3, U1> = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
+    let tens: Tensor3<usize, U1, U2, U3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
+    println!("{:?}", core::any::type_name_of_val(&tens));
+}
+
+// pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
+// pub type Mat<T, R, C> = Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>;
+//                      Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>
+//                            Prism<i32, Prism<Array<i32, U3>, Scalar<Array<Array<i32, U3>, U2>>, U2, HNil>, U3, HCons<U2, HNil>>
+
+
+// Prism<i32, Prism<Array<i32, UInt<UInt<UTerm, B1>, B1>>, Scalar<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>>, UInt<UInt<UTerm, B1>, B0>, HNil>, UInt<UInt<UTerm, B1>, B1>, HCons<UInt<UInt<UTerm, B1>, B0>, HNil>>
+
+// Prism<T, Prism<Array<T, U3, Prism<Array<Array<T, U3, U2, Scalar<Array<Array<Array<T, U3, U2, U1>, U1, HNil>, U2, HCons<U1, HNil>>, U3, HCons<U2, HCons<U1, HNil>>>
+// Prism<T, Prism<Array<T, C, Prism<Array<Array<T, C, R, Scalar<Array<Array<Array<T, C, R, S>, S, HNil>, R, HCons<S, HNil>>, C, HCons<R, HCons<S, HNil>>>
+
+
+// Prism<i32, Prism<Array<i32, UInt<UInt<UTerm, B1>, B1>>, Prism<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>, Scalar<Array<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>, UInt<UTerm, B1>>>, UInt<UTerm, B1>, HNil>, UInt<UInt<UTerm, B1>, B0>, HCons<UInt<UTerm, B1>, HNil>>, UInt<UInt<UTerm, B1>, B1>, HCons<UInt<UInt<UTerm, B1>, B0>, HCons<UInt<UTerm, B1>, HNil>>>
+
+// Prism<T, Prism<Array<T, U3>, Prism<Array<Array<T, U3>, U2>, Scalar<Array<Array<Array<T, U3>, U2>, U1>>, U1, HNil>, U2, HCons<U1, HNil>>, U3, HCons<U2, HCons<U1, HNil>>>
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use generic_array::arr;
+    
+    #[test]
+    fn foofoo() {
+        super::foo();
+    }
+
     #[test]
     fn transpose() {
         let v123 = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
-        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
+        let three_by_two: Array<GenericArray<_, _>, U2> = arr![v123, v456];
         println!("{three_by_two:?}");
         let two_by_three = three_by_two.transpose();
         println!("{two_by_three:?}");
@@ -1046,9 +1086,9 @@ mod tests {
 
     #[test]
     fn matrixprod() {
-        let v123: GenericArray<usize, _> = arr![1, 2, 3];
+        let v123: Array<usize, _> = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
-        let three_by_two: GenericArray<GenericArray<_, _>, U2> = arr![v123, v456];
+        let three_by_two: Array<GenericArray<_, _>, U2> = arr![v123, v456];
         let two_by_three = three_by_two.transpose();
         let res = matrixp(&two_by_three, &three_by_two);
         println!("{res:?}");
@@ -1062,7 +1102,7 @@ mod tests {
     fn hyper_map() {
         let v123 = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
-        let two_by_three: GenericArray<GenericArray<usize, _>, _> = arr![v123, v456];
+        let two_by_three: Array<GenericArray<usize, _>, _> = arr![v123, v456];
         // let val = Prism::new(Scalar::new(two_by_three));
         let val = Scalar::new(two_by_three);
         println!("{:?}", val);
@@ -1091,22 +1131,22 @@ mod tests {
 }
 
 pub fn matrixprod(
-    two_by_three: GenericArray<GenericArray<usize, U2>, U3>,
-    three_by_two: GenericArray<GenericArray<usize, U3>, U2>,
-) -> GenericArray<GenericArray<usize, U3>, U3> {
+    two_by_three: Array<GenericArray<usize, U2>, U3>,
+    three_by_two: Array<GenericArray<usize, U3>, U2>,
+) -> Array<GenericArray<usize, U3>, U3> {
     matrixp(&two_by_three, &three_by_two)
 }
 
-pub fn hyper_first(v123: GenericArray<usize, U3>, v456: GenericArray<usize, U3>) -> usize {
+pub fn hyper_first(v123: Array<usize, U3>, v456: GenericArray<usize, U3>) -> usize {
     use generic_array::arr;
     // let v123 = arr![1, 2, 3];
     // let v456 = arr![4, 5, 6];
-    let two_by_three: GenericArray<GenericArray<usize, _>, _> = arr![v123, v456];
+    let two_by_three: Array<GenericArray<usize, _>, _> = arr![v123, v456];
     let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
     *val.first()
 }
 
-// pub fn innerprod(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+// pub fn innerprod(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
 //     // use generic_array::arr;
 //     // let v123 = arr![1,2,3];
 //     // let v456 = arr![4,5,6];
@@ -1114,7 +1154,7 @@ pub fn hyper_first(v123: GenericArray<usize, U3>, v456: GenericArray<usize, U3>)
 // }
 
 // // pub fn innerprod_orig() {
-// pub fn innerprod_orig(v123: GenericArray<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+// pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
 //     // use generic_array::arr;
 //     // let v123 = arr![1,2,3];
 //     // let v456 = arr![4,5,6];

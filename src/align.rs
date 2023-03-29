@@ -4,7 +4,7 @@ use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
 use core::marker::PhantomData;
 use frunk::hlist::{HCons, HList};
-use generic_array::sequence::{Lengthen};
+use generic_array::sequence::Lengthen;
 use generic_array::ArrayLength;
 use typenum::NonZero;
 use typenum::{Add1, Prod, Sub1, B1};

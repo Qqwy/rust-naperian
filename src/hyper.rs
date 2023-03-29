@@ -1,11 +1,11 @@
 use crate::align::{align2, Maxed};
 use crate::common::Array;
 pub use crate::const_aliases::*;
-pub use crate::functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
-
+pub use crate::functional::{
+    Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom,
+};
 
 use std::marker::PhantomData;
-
 
 pub use crate::fin::Fin;
 
@@ -14,13 +14,12 @@ use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::operator_aliases::{Add1, Prod, Sub1};
 
-use typenum::{NonZero, Unsigned};
 use frunk::hlist::{HCons, HList, HNil};
-
+use typenum::{NonZero, Unsigned};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
-pub struct Scalar<T>(pub (crate) T);
+pub struct Scalar<T>(pub(crate) T);
 unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
     type Containing<X> = Scalar<X>;
@@ -57,7 +56,10 @@ where
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
-pub struct Prism<T, Ts, N, Ns>(pub (crate) Ts, pub (crate) core::marker::PhantomData<(T, N, Ns)>);
+pub struct Prism<T, Ts, N, Ns>(
+    pub(crate) Ts,
+    pub(crate) core::marker::PhantomData<(T, N, Ns)>,
+);
 // where
 // N: ArrayLength + NonZero,
 // Ts: Hyper<Dimensions = Ns>,
@@ -343,7 +345,6 @@ where
         Prism(new_ts, PhantomData)
     }
 }
-
 
 pub fn binary<As, Bs, AsAligned, BsAligned, Cs, A, B, C>(
     left: As,

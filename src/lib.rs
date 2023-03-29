@@ -6,16 +6,15 @@ pub mod common;
 pub mod const_aliases;
 pub mod fin;
 pub mod functional;
-pub mod paper;
 pub mod hyper;
+pub mod paper;
 
-use align::{Align};
+use align::Align;
 use common::Array;
 
-
 use functional::{Container, Mappable, Mappable2, Naperian, New};
+use hyper::{Hyper, Prism, Scalar};
 use paper::innerp_orig;
-use hyper::{Hyper, Scalar, Prism};
 
 #[doc(inline)]
 pub use const_aliases::*;
@@ -23,8 +22,6 @@ pub use const_aliases::*;
 use std::iter::Sum;
 
 use std::ops::Mul;
-
-
 
 use generic_array::{arr, GenericArray};
 use typenum::consts::*;
@@ -129,9 +126,6 @@ where
 {
     New::new(yss.transpose())
 }
-
-
-
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
@@ -311,7 +305,7 @@ mod tests {
 
 pub fn reshape_example(flat: Array<usize, U<20>>) -> Tensor3<usize, 2, 2, 5> {
     // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
-    
+
     Tensor3::<usize, 2, 2, 5>::from_flat(flat)
     // println!("{:?}", &tens);
     // let vec: MatC<usize, 6, 2> = tens.reshape();

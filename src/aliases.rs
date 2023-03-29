@@ -1,4 +1,3 @@
-
 use super::{Array, HCons, HNil, Prism};
 
 /// A single scalar value.
@@ -35,5 +34,9 @@ pub type Tensor3<T, Slices, Rows, Cols> =
 /// This is a type alias.
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-pub type Tensor4<T, Blocks, Slices, Rows, Cols> =
-    Prism<T, Tensor3<Array<T, Cols>, Blocks, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HCons<Blocks, HNil>>>>;
+pub type Tensor4<T, Blocks, Slices, Rows, Cols> = Prism<
+    T,
+    Tensor3<Array<T, Cols>, Blocks, Slices, Rows>,
+    Cols,
+    HCons<Rows, HCons<Slices, HCons<Blocks, HNil>>>,
+>;

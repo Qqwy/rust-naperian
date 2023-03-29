@@ -1,4 +1,3 @@
-
 use super::{Array, HCons, HNil, Prism};
 use typenum::U;
 
@@ -37,5 +36,15 @@ pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> =
 /// This is a type alias.
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-pub type Tensor4<T, const BLOCKS: usize, const SLICES: usize, const ROWS: usize, const COLS: usize> =
-    Prism<T, Tensor3<Array<T, U<COLS>>, BLOCKS, SLICES, ROWS>, U<COLS>, HCons<U<ROWS>, HCons<U<SLICES>, HCons<U<BLOCKS>, HNil>>>>;
+pub type Tensor4<
+    T,
+    const BLOCKS: usize,
+    const SLICES: usize,
+    const ROWS: usize,
+    const COLS: usize,
+> = Prism<
+    T,
+    Tensor3<Array<T, U<COLS>>, BLOCKS, SLICES, ROWS>,
+    U<COLS>,
+    HCons<U<ROWS>, HCons<U<SLICES>, HCons<U<BLOCKS>, HNil>>>,
+>;

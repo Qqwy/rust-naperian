@@ -9,29 +9,29 @@ pub mod functional;
 pub mod paper;
 pub mod hyper;
 
-use align::{align2, Align, Maxed};
+use align::{Align};
 use common::Array;
 
 
-use functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
+use functional::{Container, Mappable, Mappable2, Naperian, New};
 use paper::innerp_orig;
-use hyper::{Hyper, Scalar, Prism, binary};
+use hyper::{Hyper, Scalar, Prism};
 
 #[doc(inline)]
 pub use const_aliases::*;
 
 use std::iter::Sum;
-use std::marker::PhantomData;
+
 use std::ops::Mul;
 
 
-use generic_array::sequence::{Lengthen, Shorten};
-use generic_array::{arr, ArrayLength, GenericArray};
+
+use generic_array::{arr, GenericArray};
 use typenum::consts::*;
-use typenum::operator_aliases::{Add1, Prod, Sub1};
+
 use typenum::U;
-use typenum::{NonZero, Unsigned};
-use frunk::hlist::{HCons, HList, HNil};
+
+use frunk::hlist::{HCons, HNil};
 
 /// Transpose a `F<G<A>>` into `G<F<A>>` provided both `F` and `G` implement [`Naperian`].
 /// (and A: [`Clone`] since we need to copy a bunch of `A`'s around.)
@@ -134,7 +134,7 @@ where
 
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
-    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
+    let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
     let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
         arr![1, 2, 3],
         arr![4, 5, 6]
@@ -154,14 +154,14 @@ pub fn foo() -> Tensor3<usize, 2, 2, 3> {
 }
 
 pub fn alignment() {
-    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
+    let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
     let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
         arr![1, 2, 3],
         arr![4, 5, 6]
     ])));
     let mat2: Tensor3<usize, 3, 2, 3> = mat.align();
     // println!("mat: {:?}", mat);
-    println!("mat2: {:?}", mat2);
+    println!("mat2: {mat2:?}");
 }
 
 // pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
@@ -184,6 +184,7 @@ mod tests {
 
     #[test]
     fn binary() {
+        use hyper::AutoMappable2;
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let vec = Vect::<usize, 3>::from_flat(arr![10, 20, 30]);
         let res = mat.map2(vec, |x, y| x + y);
@@ -310,8 +311,8 @@ mod tests {
 
 pub fn reshape_example(flat: Array<usize, U<20>>) -> Tensor3<usize, 2, 2, 5> {
     // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
-    let tens = Tensor3::<usize, 2, 2, 5>::from_flat(flat);
-    tens
+    
+    Tensor3::<usize, 2, 2, 5>::from_flat(flat)
     // println!("{:?}", &tens);
     // let vec: MatC<usize, 6, 2> = tens.reshape();
 

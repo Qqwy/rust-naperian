@@ -65,7 +65,7 @@ unsafe impl<T> Container for Box<T> {
 /// # Examples
 /// Transform each element using a unary function:
 /// ```rust
-/// use naperian::Mappable;
+/// use naperian::functional::Mappable;
 /// use generic_array::arr;
 /// let v123 = arr![1,2,3];
 /// assert_eq!(v123.map(|x| x + 1), arr![2, 3, 4]);
@@ -73,7 +73,7 @@ unsafe impl<T> Container for Box<T> {
 ///
 /// Using mutable state as a 'lightweight traversable':
 ///```rust
-/// use naperian::Mappable;
+/// use naperian::functional::Mappable;
 /// use generic_array::arr;
 /// let v123 = arr![1,2,3];
 /// let mut sum = 0;

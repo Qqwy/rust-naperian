@@ -3,11 +3,11 @@
 use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
 use core::marker::PhantomData;
-use frunk::hlist::{HCons, HList, HNil};
-use generic_array::sequence::{Lengthen, Shorten};
+use frunk::hlist::{HCons, HList};
+use generic_array::sequence::{Lengthen};
 use generic_array::ArrayLength;
 use typenum::NonZero;
-use typenum::{Add1, Prod, Sub1, B0, B1};
+use typenum::{Add1, Prod, Sub1, B1};
 
 pub trait Align<Other>
 where
@@ -125,7 +125,7 @@ pub fn hypermax() {
     let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
     type Max = <Vect<usize, 1> as HyperMax<Mat<usize, 2, 1>>>::Output;
     let res = std::any::type_name::<Max>();
-    println!("Max: {:?}", res);
+    println!("Max: {res:?}");
     let (mat_aligned, tens_aligned) = align2(mat, tens);
     // let mat_aligned: Max = mat.align();
     // let tens_aligned: Max = tens.align();

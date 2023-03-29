@@ -1,11 +1,11 @@
-use crate::align::{align2, Align, Maxed};
+use crate::align::{align2, Maxed};
 use crate::common::Array;
 pub use crate::const_aliases::*;
 pub use crate::functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
-use crate::paper::innerp_orig;
-use std::iter::Sum;
+
+
 use std::marker::PhantomData;
-use std::ops::Mul;
+
 
 pub use crate::fin::Fin;
 
@@ -13,7 +13,7 @@ use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::operator_aliases::{Add1, Prod, Sub1};
-use typenum::U;
+
 use typenum::{NonZero, Unsigned};
 use frunk::hlist::{HCons, HList, HNil};
 
@@ -239,7 +239,7 @@ where
     }
 
     fn inner(&self) -> &Self::Orig {
-        &self.0.inner()
+        self.0.inner()
     }
 
     fn dimensions() -> Array<usize, Self::Rank> {

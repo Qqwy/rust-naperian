@@ -241,7 +241,7 @@ pub trait Hyper: Sized {
 
     // }
 
-    fn dim(&self) -> usize;
+    fn innermost_dimension(&self) -> usize;
 
     fn first(&self) -> &Self::Elem;
 
@@ -282,7 +282,7 @@ impl<T> Hyper for Scalar<T> {
     //     &self.0
     // }
 
-    fn dim(&self) -> usize {
+    fn innermost_dimension(&self) -> usize {
         1
     }
     fn first(&self) -> &T {
@@ -332,7 +332,7 @@ where
 
     type AmountOfElems = Prod<Ts::AmountOfElems, N>;
 
-    fn dim(&self) -> usize {
+    fn innermost_dimension(&self) -> usize {
         N::USIZE
     }
 
@@ -654,16 +654,16 @@ mod tests {
         // let val = Prism::new(Scalar::new(two_by_three));
         let val = Scalar::new(two_by_three);
         println!("{:?}", val);
-        println!("{:?}", val.dim());
+        println!("{:?}", val.innermost_dimension());
         println!("{:?}", val.amount_of_elems());
         let val = Prism::build(Scalar::new(two_by_three));
         println!("{:?}", val);
-        println!("{:?}", val.dim());
+        println!("{:?}", val.innermost_dimension());
         println!("{:?}", val.amount_of_elems());
         let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
         let first = val.first();
         println!("{:?}", val);
-        println!("{:?}", val.dim());
+        println!("{:?}", val.innermost_dimension());
         println!("{:?}", val.amount_of_elems());
         println!("{:?}", first);
 

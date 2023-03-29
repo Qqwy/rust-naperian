@@ -10,7 +10,7 @@ impl TensorCompatibilityOption for Tensor {}
 /// where one of the elements is a non-tensor element.
 ///
 ///
-/// If you ever encounter the error "the trait `TensorCompatible` is not implemented for `u128`", then you need to implement this trait for your struct and the binary operator will work.
+/// If you ever encounter the error "the trait `TensorCompatible` is not implemented for `MyType`", then you need to implement this trait for your struct and the binary operator will work.
 ///
 /// # How?
 ///

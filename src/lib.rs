@@ -8,12 +8,15 @@ pub mod fin;
 pub mod functional;
 pub mod hyper;
 pub mod paper;
+pub mod compat;
+
 
 use align::Alignable;
 use align::Maxed;
 use common::Array;
 
 use functional::{Container, Mappable, Mappable2, Naperian, New};
+use compat::{Elem, Tensor, TensorCompatible};
 
 use hyper::AutoMappable2;
 #[doc(inline)]
@@ -166,52 +169,13 @@ pub fn alignment() {
 }
 
 use core::ops::Sub;
-// impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned> Sub<HypB> for Scalar<A>
-// where
-//     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-//     HypA: Hyper<Elem = A> + HyperLike,
-//     HypB: Hyper<Elem = B> + HyperLike,
-//     A: Sub<B, Output = C>,
-//     HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
-//     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
-//     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
-//     HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
-//     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
-// {
-//     type Output = HypC;
 
-//     fn sub(self, rhs: HypB) -> HypC {
-//         self.map2(rhs, Sub::sub)
-//     }
-// }
-
-// impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned, As, N, Ns> Sub<HypB> for Prism<A, As, N, Ns>
-// where
-//     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-//     HypA: Hyper<Elem = A> + HyperLike,
-//     HypB: Hyper<Elem = B> + HyperLike,
-//     A: Sub<B, Output = C>,
-//     HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
-//     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
-//     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
-//     HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
-//     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
-// {
-//     type Output = HypC;
-
-//     fn sub(self, rhs: HypB) -> HypC {
-//         self.map2(rhs, Sub::sub)
-//     }
-// }
-pub mod compat;
-use compat::{Elem, Tensor, TensorCompatible};
-
-trait SubExecutor<T: TensorCompatible, HL = <T as TensorCompatible>::Kind> {
+trait SubImpl<T: TensorCompatible, HL = <T as TensorCompatible>::Kind> {
     type Output;
     fn do_sub(self, rhs: T) -> Self::Output;
 }
 
-impl<A, B> SubExecutor<B, Elem> for Scalar<A>
+impl<A, B> SubImpl<B, Elem> for Scalar<A>
     where
     B: TensorCompatible<Kind = Elem>,
     A: Sub<B>,
@@ -223,7 +187,7 @@ impl<A, B> SubExecutor<B, Elem> for Scalar<A>
     }
 }
 
-impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubExecutor<HypB, Tensor> for Scalar<A>
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubImpl<HypB, Tensor> for Scalar<A>
 where
     HypB: TensorCompatible<Kind = Tensor>,
 
@@ -243,19 +207,8 @@ where
     }
 }
 
-impl<A, B, Kind, C> Sub<B> for Scalar<A>
-    where
-    Self: SubExecutor<B, Kind, Output = C>,
-    B: TensorCompatible<Kind = Kind>,
-{
-    type Output = C; //<Self as SubExecutor<B, Selector>>::Output;
-    fn sub(self, rhs: B) -> Self::Output {
-        self.do_sub(rhs)
-    }
-}
 
-
-impl<A, B, As, N, Ns> SubExecutor<B, Elem> for Prism<A, As, N, Ns>
+impl<A, B, As, N, Ns> SubImpl<B, Elem> for Prism<A, As, N, Ns>
     where
     B: TensorCompatible<Kind = Elem>,
     A: Sub<B>,
@@ -268,7 +221,7 @@ impl<A, B, As, N, Ns> SubExecutor<B, Elem> for Prism<A, As, N, Ns>
     }
 }
 
-impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubExecutor<HypB, Tensor> for Prism<A, As, N, Ns>
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubImpl<HypB, Tensor> for Prism<A, As, N, Ns>
 where
     HypB: TensorCompatible<Kind = Tensor>,
 
@@ -289,13 +242,24 @@ where
     }
 }
 
-impl<A, B, C, Kind, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
+impl<A, B, Kind, C> Sub<B> for Scalar<A>
 where
-    Self: SubExecutor<B, Kind, Output = C>,
+    Self: SubImpl<B, Kind, Output = C>,
     B: TensorCompatible<Kind = Kind>,
 {
     type Output = C;
-    fn sub(self, rhs: B) -> Self::Output {
+    fn sub(self, rhs: B) -> C {
+        self.do_sub(rhs)
+    }
+}
+
+impl<A, B, C, Kind, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
+where
+    Self: SubImpl<B, Kind, Output = C>,
+    B: TensorCompatible<Kind = Kind>,
+{
+    type Output = C;
+    fn sub(self, rhs: B) -> C {
         self.do_sub(rhs)
     }
 }
@@ -322,7 +286,7 @@ pub fn align_subtraction() {
     println!("{:?}", res2);
 
     let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res3 = mat2 - 10;
+    let res3 = mat2 - "hello";
     println!("{:?}", res3);
 }
 

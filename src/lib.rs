@@ -433,26 +433,24 @@ impl<A, U> Mappable2<A, U> for Scalar<A> {
     }
 }
 
-// TODO might be incorrect
-// impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
-// where
-//     N: ArrayLength + NonZero,
-//     Ts: Hyper<Dimensions = Ns> + Mappable<A> + Container<Elem=T>,
-//     Ts::Containing<A>: Hyper<Dimensions = Ns>,
-//     Ns: HList,
-// {
-//     fn map(&self, fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
-//         let res = self.0.map(fun);// .map(|inner| inner.map(&mut fun));
-//         Prism(res, core::marker::PhantomData)
-//     }
+impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
+where
+    N: ArrayLength + NonZero,
+    Ts: Hyper<Dimensions = Ns> + Mappable<Array<A, N>> + Container<Elem=Array<T, N>>,
+    Ts::Containing<A>: Hyper<Dimensions = Ns>,
+    Ns: HList,
+{
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map(|arr| { arr.map(&mut fun) });
+        Prism(res, core::marker::PhantomData)
+    }
 
-//     fn map_by_value(self, fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
-//         let res = self.0.map_by_value(fun);// map_by_value(|inner| inner.map_by_value(&mut fun));
-//         Prism(res, core::marker::PhantomData)
-//     }
-// }
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        let res = self.0.map_by_value(|arr| { arr.map_by_value(&mut fun) });
+        Prism(res, core::marker::PhantomData)
+    }
+}
 
-// TODO might be incorrect
 impl<Ts, N, Ns, A, U> Mappable2<A, U> for Prism<A, Ts, N, Ns>
 where
     Self: Hyper<Elem = A>,

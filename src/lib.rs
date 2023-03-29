@@ -9,7 +9,7 @@ pub mod functional;
 pub mod hyper;
 pub mod paper;
 
-use align::Align;
+use align::Alignable;
 use common::Array;
 
 use functional::{Container, Mappable, Mappable2, Naperian, New};

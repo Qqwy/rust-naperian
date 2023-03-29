@@ -9,7 +9,16 @@ use generic_array::ArrayLength;
 use typenum::NonZero;
 use typenum::{Add1, Prod, Sub1, B1};
 
-pub trait Align<Other>
+/// Helper trait to align a tensor with another.
+///
+/// Rust implementation of the 'Alignable' typeclass from the Naperian paper.
+///
+/// This means that if Self is a Tensor whose rank is lower,
+/// that its elements will be repeaded for each of the higher ranks of the other.
+///
+/// The definition only makes sense (and the impls guard against this)
+/// if Other is equal or larger in rank than Self.
+pub trait Alignable<Other>
 where
     Self: Hyper,
     Other: Hyper<Elem = Self::Elem>,
@@ -17,7 +26,7 @@ where
     fn align(self) -> Other;
 }
 
-impl<T, Other, ORank> Align<Other> for Scalar<T>
+impl<T, Other, ORank> Alignable<Other> for Scalar<T>
 where
     Other: Hyper<Elem = Self::Elem, Rank = ORank>,
     ORank: typenum::IsGreaterOrEqual<Self::Rank, Output = B1>,
@@ -27,13 +36,13 @@ where
     }
 }
 
-impl<T, Ts, N, Ns, Other, DimensionsRest> Align<Other> for Prism<T, Ts, N, Ns>
+impl<T, Ts, N, Ns, Other, DimensionsRest> Alignable<Other> for Prism<T, Ts, N, Ns>
 where
     DimensionsRest: HList,
     Other: Hyper<Elem = Self::Elem, Dimensions = HCons<N, DimensionsRest>>,
     Other::Inner: Hyper<Elem = Array<T, N>>,
 
-    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Align<Other::Inner>,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Alignable<Other::Inner>,
     Ns: HList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
@@ -105,14 +114,14 @@ where
 /// Helper subtrait to make trait bounds more readable.
 /// As: Maxed<Bs, AsAligned> means that 'AsAligned' is a Hyper just like As but having been aligned with the dimensions of Bs.
 pub trait Maxed<Other, SelfAligned>:
-    HyperMax<Other, Output = SelfAligned> + Align<SelfAligned>
+    HyperMax<Other, Output = SelfAligned> + Alignable<SelfAligned>
 where
     SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
 {
 }
 impl<T, Other, SelfAligned> Maxed<Other, SelfAligned> for T
 where
-    Self: HyperMax<Other, Output = SelfAligned> + Align<SelfAligned>,
+    Self: HyperMax<Other, Output = SelfAligned> + Alignable<SelfAligned>,
     SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
 {
 }

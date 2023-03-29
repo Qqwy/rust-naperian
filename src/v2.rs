@@ -1122,7 +1122,7 @@ where
     Self: Hyper<Elem = A>,
     Self::Containing<U>: Hyper<Elem = U, AmountOfElems = <Self as Hyper>::AmountOfElems>,
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable2<Array<A, N>, Array<U, N>> + Container<Elem = A>,
+    Ts: Hyper<Dimensions = Ns> + Mappable2<Array<A, N>, Array<U, N>>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
@@ -1157,16 +1157,12 @@ pub fn binary<Left, Right, LMax, RMax, A, B, C>(
 where
     Left: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
     Right: Hyper<Elem = B> + HyperMax<Left, Output = RMax> + HyperAlign<RMax>,
-    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax>,
+    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
     RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
     LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
 {
     let (mleft, mright) = align2(left, right);
-    let flat_mleft = mleft.into_flat();
-    let flat_mright = mright.into_flat();
-    let flat_res = flat_mleft.map2_by_value(flat_mright, fun);
-    LMax::Containing::<C>::from_flat(flat_res)
-    // mleft.map2_by_value(mright, fun)
+    mleft.map2_by_value(mright, fun)
 }
 
 pub mod aliases {

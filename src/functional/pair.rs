@@ -1,4 +1,4 @@
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Traversable, Naperian};
+use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Traversable, Naperian, Dimension};
 
 
 // TODO implement IntoIterator for Pair
@@ -110,5 +110,11 @@ impl<T> Naperian<T> for Pair<T> {
 
     fn positions() -> Self::Containing<Self::Log> {
         Pair(false, true)
+    }
+}
+
+impl<T> Dimension for Pair<T> {
+    fn size(&self) -> usize {
+        2
     }
 }

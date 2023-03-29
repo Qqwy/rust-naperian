@@ -4,16 +4,22 @@ pub mod common;
 pub mod fin;
 pub mod functional;
 pub mod align;
+pub mod paper;
+pub mod aliases;
+pub mod const_aliases;
 
 use common::Array;
+pub use const_aliases::*;
 pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply, Naperian};
-use functional::pair::Pair;
+use paper::innerp_orig;
 use align::{Maxed, align2, Align};
+use std::iter::Sum;
 use std::marker::PhantomData;
+use std::ops::Mul;
 
-use fin::Fin;
+pub use fin::Fin;
 
-use generic_array::sequence::{GenericSequence, Lengthen, Shorten};
+use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::operator_aliases::{Add1, Prod, Sub1};
@@ -46,52 +52,20 @@ where
 {
 }
 
-/// Anything that is a Dimension can be used one one rank of a hypercuboid.
-///
-///
-/// Conceptually Dimension is a supertrait of [`Mappable`], [`Apply`], [`New`], [`Mappable2`], [`Mappable3`], [`IntoIterator`] and  [`Traversable`].
-/// But making it a 'true' supertrait would require a very large number of (usually unconstrained and therefore un-inferrable) type parameters.
-/// Instead, the other bounds are introduced only for the particular operations where they are required.
-pub trait Dimension: Container {
-    fn size(&self) -> usize;
-}
-
-impl<T> Dimension for Pair<T> {
-    fn size(&self) -> usize {
-        2
-    }
-}
-
-impl<T, N: ArrayLength> Dimension for Array<T, N> {
-    fn size(&self) -> usize {
-        N::USIZE
-    }
-}
-
-/// Version of innerp precisely following the Naperian paper.
-///
-/// This is evaluated more strictly than desired; it will first create an intermediate container
-/// with all the products, and then sum the elements in this container.
-pub fn innerp_orig<A, R>(a: &A, b: &A) -> R
-where
-    A: Mappable2<R, R> + Container<Containing<R> = A> + IntoIterator,
-    R: std::iter::Sum<<A as std::iter::IntoIterator>::Item>,
-    R: core::ops::Mul<R, Output = R> + Clone,
-{
-    let products = a.map2(b, |x: &R, y: &R| x.clone() * y.clone());
-
-    products.into_iter().sum()
-}
-
-/// Calculate the inner product of two containers of the same shape.
+/// Calculate the inner product (also known as the dot product) of two collections of the same shape.
 ///
 /// The inner product is the sum of multiplying all elements pairwise.
+///
+/// Its implementation is different from the one mentioned in the Naperian paper,
+/// and has bounds which are on one hand simpler, but on the other do require some lifetime tracking.
+///
+/// (See the original definition as [`paper::innerp_orig`]).
 pub fn innerp<'a, A, R: 'a>(a: &'a A, b: &'a A) -> R
 where
     &'a A: IntoIterator<Item = &'a R>,
     A: Container<Containing<R> = A> + IntoIterator,
-    &'a R: core::ops::Mul<&'a R, Output = R>,
-    R: core::iter::Sum,
+    &'a R: Mul<&'a R, Output = R>,
+    R: Sum,
 {
     a.into_iter().zip(b.into_iter()).map(|(x, y)| x * y).sum()
 }
@@ -191,11 +165,11 @@ where
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
 #[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
-pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
-where
-    N: ArrayLength + NonZero,
+pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>);
+// where
+    // N: ArrayLength + NonZero,
     // Ts: Hyper<Dimensions = Ns>,
-    Ns: HList;
+    // Ns: HList;
 
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
@@ -414,7 +388,6 @@ impl<T, A> Mappable<A> for Scalar<T> {
     }
 }
 
-// TODO might be incorrect
 impl<A, U> Mappable2<A, U> for Scalar<A> {
     fn map2<'b, B: 'b>(
         &self,
@@ -537,68 +510,6 @@ where
 {}
 
 
-pub mod aliases {
-    use super::{Array, HCons, HNil, Prism, Scalar};
-
-    /// Vect, a Vector with a statically-known size.
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`Hyper`] trait which contains many common operations.
-    pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
-
-    /// Mat, a Matrix with a statically-known dimensions (rows, colums).
-    ///
-    /// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`Hyper`] trait which contains many common operations.
-    pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
-
-    /// Rank-3 tensors (slices, rows, columns).
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`Hyper`] trait which contains many common operations.
-    pub type Tensor3<T, Slices, Rows, Cols> =
-        Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
-}
-
-pub mod const_aliases {
-    use super::{Array, HCons, HNil, Prism, Scalar};
-    use typenum::U;
-
-    /// Vect, a Vector with a statically-known size.
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-    pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U<N>>>, U<N>, HNil>;
-
-    /// Mat, a Matrix with a statically-known dimensions (rows, colums).
-    ///
-    /// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-    pub type Mat<T, const ROWS: usize, const COLS: usize> =
-        Prism<T, Vect<Array<T, U<COLS>>, ROWS>, U<COLS>, HCons<U<ROWS>, HNil>>;
-
-    /// Vect, a Vector with a statically-known size.
-    ///
-    /// This is a type alias.
-    /// During normal usage you do not need to understand the backing type,
-    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-    pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<
-        T,
-        Mat<Array<T, U<COLS>>, SLICES, ROWS>,
-        U<COLS>,
-        HCons<U<ROWS>, HCons<U<SLICES>, HNil>>,
-    >;
-}
-pub use const_aliases::*;
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
@@ -674,6 +585,7 @@ mod tests {
 
     #[test]
     fn transpose() {
+        use crate::functional::pair::Pair;
         let v123 = arr![1, 2, 3];
         let v456 = arr![4, 5, 6];
         let three_by_two: Array<GenericArray<_, _>, U2> = arr![v123, v456];
@@ -694,6 +606,7 @@ mod tests {
 
     #[test]
     fn traversable() {
+        use crate::functional::pair::Pair;
         let _pair = Pair(10, 20);
         // let res = pair.traverse(increase);
         // println!("{:?}", pair);

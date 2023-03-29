@@ -330,3 +330,14 @@ pub trait Naperian<T>: Mappable<T> {
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
     fn positions() -> Self::Containing<Self::Log>;
 }
+
+
+/// Anything that is a Dimension can be used one one rank of a hypercuboid.
+///
+///
+/// Conceptually Dimension is a supertrait of [`Mappable`], [`Apply`], [`New`], [`Mappable2`], [`Mappable3`], [`IntoIterator`] and  [`Traversable`].
+/// But making it a 'true' supertrait would require a very large number of (usually unconstrained and therefore un-inferrable) type parameters.
+/// Instead, the other bounds are introduced only for the particular operations where they are required.
+pub trait Dimension: Container {
+    fn size(&self) -> usize;
+}

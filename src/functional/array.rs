@@ -7,7 +7,7 @@ use crate::fin::Fin;
 use generic_array::ArrayLength;
 use generic_array::sequence::GenericSequence;
 
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Naperian};
+use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Naperian, Dimension};
 
 unsafe impl<T, N> Container for Array<T, N>
 where
@@ -128,5 +128,11 @@ where
             let fin = unsafe { Fin::new_unchecked(pos) };
             fun(fin)
         })
+    }
+}
+
+impl<T, N: ArrayLength> Dimension for Array<T, N> {
+    fn size(&self) -> usize {
+        N::USIZE
     }
 }

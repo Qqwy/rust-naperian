@@ -7,9 +7,9 @@ use fin::Fin;
 use generic_array::sequence::{GenericSequence, Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
-use typenum::{Unsigned, NonZero};
+use typenum::operator_aliases::{Add1, Prod, Sub1};
 use typenum::U;
-use typenum::operator_aliases::{Prod, Add1, Sub1};
+use typenum::{NonZero, Unsigned};
 
 /// A shorter alias for Array
 /// since we use it so prevalently in this crate.
@@ -700,7 +700,7 @@ where
     R: core::ops::Mul<R, Output = R> + Clone,
 {
     let products = a.map2(b, |x: &R, y: &R| x.clone() * y.clone());
-    
+
     products.into_iter().sum()
 }
 
@@ -771,8 +771,7 @@ where
     New::new(yss.transpose())
 }
 
-use frunk::hlist::{HList, HCons, HNil};
-
+use frunk::hlist::{HCons, HList, HNil};
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
@@ -781,7 +780,6 @@ unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
     type Containing<X> = Scalar<X>;
 }
-
 
 impl<T> New<T> for Scalar<T> {
     fn new(val: T) -> Self {
@@ -793,7 +791,7 @@ impl<T, Ts, N, Ns> New<T> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>> + Container,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Container,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
@@ -818,14 +816,13 @@ pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
 where
     N: ArrayLength + NonZero,
     // Ts: Hyper<Dimensions = Ns>,
-    Ns: HList,
-;
+    Ns: HList;
 
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
@@ -837,7 +834,6 @@ where
     Sub1<Add1<Ts::Rank>>: ArrayLength,
     Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
-
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Prism")
@@ -851,13 +847,12 @@ impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
 {
     pub fn build(vals: Ts) -> Self {
         Prism(vals, core::marker::PhantomData)
     }
 }
-
 
 unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
 where
@@ -917,20 +912,18 @@ pub trait Hyper: Sized {
     ///
     /// This is a cheap operation. Currently it requires a single move.
     fn reshape<Other>(self) -> Other
-        where
-        Other: Hyper<Elem = Self::Elem, AmountOfElems = Self::AmountOfElems>
+    where
+        Other: Hyper<Elem = Self::Elem, AmountOfElems = Self::AmountOfElems>,
     {
         Other::from_flat(self.into_flat())
     }
-
 }
 
 pub trait HyperAlign<Other>
-    where
+where
     Self: Hyper,
-    Other: Hyper<Elem = Self::Elem>
+    Other: Hyper<Elem = Self::Elem>,
 {
-
     fn align(self) -> Other;
 }
 
@@ -969,24 +962,21 @@ impl<T> Hyper for Scalar<T> {
         let (elem, _empty_arr) = arr.pop_front();
         Scalar(elem)
     }
-
 }
 
 impl<T, Other, ORank> HyperAlign<Other> for Scalar<T>
 where
     Other: Hyper<Elem = Self::Elem, Rank = ORank>,
-    ORank: typenum::IsGreaterOrEqual<Self::Rank, Output=B1>,
+    ORank: typenum::IsGreaterOrEqual<Self::Rank, Output = B1>,
 {
-
-    fn align(self) -> Other
-    {
+    fn align(self) -> Other {
         Other::hreplicate(self.0)
     }
 }
 
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
-    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>>,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
     Ns: HList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
@@ -1035,7 +1025,6 @@ where
         Prism(Ts::hreplicate(New::new(elem)), core::marker::PhantomData)
     }
 
-
     fn into_flat(self) -> Array<Self::Elem, Self::AmountOfElems> {
         // SAFETY: GenericArray has the following guarantees:
         // - It stores `Self::Elem` types consecutively in memory, with proper alignment
@@ -1044,16 +1033,12 @@ where
         //
         // Note that we cannot use transmute because the compiler is not able to see that the sizes match
         // (even though they do!) c.f. https://github.com/rust-lang/rust/issues/47966
-        unsafe {
-            core::mem::transmute_copy(&self)
-        }
+        unsafe { core::mem::transmute_copy(&self) }
     }
 
     fn from_flat(arr: Array<Self::Elem, Self::AmountOfElems>) -> Self {
         // SAFETY: See into_flat
-        unsafe {
-            core::mem::transmute_copy(&arr)
-        }
+        unsafe { core::mem::transmute_copy(&arr) }
     }
 }
 
@@ -1063,7 +1048,7 @@ where
     Other: Hyper<Elem = Self::Elem, Dimensions = HCons<N, DimensionsRest>>,
     Other::Inner: Hyper<Elem = Array<T, N>>,
 
-    Ts: Hyper<Dimensions = Ns, Elem=Array<T, N>> + HyperAlign<Other::Inner>,
+    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + HyperAlign<Other::Inner>,
     Ns: HList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
@@ -1071,14 +1056,13 @@ where
     Add1<Ts::Rank>: ArrayLength,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
 
-        Ts::Rank: core::ops::Add<B1> + ArrayLength,
+    Ts::Rank: core::ops::Add<B1> + ArrayLength,
     Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
     Sub1<Add1<Ts::Rank>>: ArrayLength,
     Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
-    fn align(self) -> Other
-    {
+    fn align(self) -> Other {
         // TODO: Probably incorrect
         let res: Prism<T, _, N, Other::Dimensions> = Prism(Ts::align(self.0), PhantomData);
         unsafe { core::mem::transmute_copy(&res) }
@@ -1135,10 +1119,10 @@ impl<A, U> Mappable2<A, U> for Scalar<A> {
 // TODO might be incorrect
 impl<Ts, N, Ns, A, U> Mappable2<A, U> for Prism<A, Ts, N, Ns>
 where
-    Self: Hyper<Elem=A>,
-    Self::Containing<U>: Hyper<Elem=U, AmountOfElems = <Self as Hyper>::AmountOfElems>,
+    Self: Hyper<Elem = A>,
+    Self::Containing<U>: Hyper<Elem = U, AmountOfElems = <Self as Hyper>::AmountOfElems>,
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable2<GenericArray<A, N>, U> + Container<Elem=A>,
+    Ts: Hyper<Dimensions = Ns> + Mappable2<GenericArray<A, N>, U> + Container<Elem = A>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
@@ -1159,7 +1143,7 @@ where
         fun: impl FnMut(A, B) -> U,
     ) -> Self::Containing<U> {
         let flat_self = self.into_flat();
-        let flat_rhs = unsafe{ core::mem::transmute_copy(&rhs)}; // rhs.into_flat();
+        let flat_rhs = unsafe { core::mem::transmute_copy(&rhs) }; // rhs.into_flat();
         let flat_res = flat_self.map2_by_value(flat_rhs, fun);
         Self::Containing::<U>::from_flat(flat_res)
 
@@ -1168,85 +1152,101 @@ where
     }
 }
 
-pub fn binary<Left, Right, LMax, RMax, A, B, C>(left: Left, right: Right, fun: impl Fn(A, B) -> C) -> LMax::Containing<C>
-    where
-    Left: Hyper<Elem = A> + HyperMax<Right, Output=LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = B> + HyperMax<Left, Output=RMax> + HyperAlign<RMax>,
+pub fn binary<Left, Right, LMax, RMax, A, B, C>(
+    left: Left,
+    right: Right,
+    fun: impl Fn(A, B) -> C,
+) -> LMax::Containing<C>
+where
+    Left: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = B> + HyperMax<Left, Output = RMax> + HyperAlign<RMax>,
     LMax: Hyper<Elem = A> + Container<Containing<B> = RMax>,
     RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
-    LMax::Containing::<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
-    {
-        let (mleft, mright) = align2(left, right);
+    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+{
+    let (mleft, mright) = align2(left, right);
     let flat_mleft = mleft.into_flat();
     let flat_mright = mright.into_flat();
     let flat_res = flat_mleft.map2_by_value(flat_mright, fun);
     LMax::Containing::<C>::from_flat(flat_res)
-        // mleft.map2_by_value(mright, fun)
-    }
+    // mleft.map2_by_value(mright, fun)
+}
 
 pub mod aliases {
-    use super::{Prism, Scalar, Array, HNil, HCons};
+    use super::{Array, HCons, HNil, Prism, Scalar};
 
-/// Vect, a Vector with a statically-known size.
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
+    /// Vect, a Vector with a statically-known size.
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`Hyper`] trait which contains many common operations.
+    pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
 
-/// Mat, a Matrix with a statically-known dimensions (rows, colums).
-///
-/// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
+    /// Mat, a Matrix with a statically-known dimensions (rows, colums).
+    ///
+    /// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`Hyper`] trait which contains many common operations.
+    pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
 
-/// Rank-3 tensors (slices, rows, columns).
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Tensor3<T, Slices, Rows, Cols> = Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
-
+    /// Rank-3 tensors (slices, rows, columns).
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`Hyper`] trait which contains many common operations.
+    pub type Tensor3<T, Slices, Rows, Cols> =
+        Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
 }
 
 pub mod const_aliases {
-use typenum::U;
-use super::{Prism, Scalar, Array, HNil, HCons};
+    use super::{Array, HCons, HNil, Prism, Scalar};
+    use typenum::U;
 
-/// Vect, a Vector with a statically-known size.
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U::<N>>>, U::<N>, HNil>;
+    /// Vect, a Vector with a statically-known size.
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
+    pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U<N>>>, U<N>, HNil>;
 
-/// Mat, a Matrix with a statically-known dimensions (rows, colums).
-///
-/// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Mat<T, const ROWS: usize, const COLS: usize> = Prism<T, Vect<Array<T, U::<COLS>>, ROWS>, U::<COLS>, HCons<U::<ROWS>, HNil>>;
+    /// Mat, a Matrix with a statically-known dimensions (rows, colums).
+    ///
+    /// Matrices are stored in [Row-major order](https://en.wikipedia.org/wiki/Row-_and_column-major_order).
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
+    pub type Mat<T, const ROWS: usize, const COLS: usize> =
+        Prism<T, Vect<Array<T, U<COLS>>, ROWS>, U<COLS>, HCons<U<ROWS>, HNil>>;
 
-/// Vect, a Vector with a statically-known size.
-///
-/// This is a type alias.
-/// During normal usage you do not need to understand the backing type,
-/// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<T, Mat<Array<T, U::<COLS>>, SLICES, ROWS>, U::<COLS>, HCons<U::<ROWS>, HCons<U::<SLICES>, HNil>>>;
-
+    /// Vect, a Vector with a statically-known size.
+    ///
+    /// This is a type alias.
+    /// During normal usage you do not need to understand the backing type,
+    /// only that it implements the [`super::Hyper`] trait which contains many common operations.
+    pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> = Prism<
+        T,
+        Mat<Array<T, U<COLS>>, SLICES, ROWS>,
+        U<COLS>,
+        HCons<U<ROWS>, HCons<U<SLICES>, HNil>>,
+    >;
 }
 use const_aliases::*;
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
-    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1,2,3]));
-    let mat: Mat<usize, 2, 3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
+    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
+    let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
+        arr![1, 2, 3],
+        arr![4, 5, 6]
+    ])));
     // let tens: Tensor3<usize, U2, U3, U1> = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
-    let tens: Tensor3<usize, 2, 2, 3>  = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]], arr![arr![7,8,9], arr![10, 11, 12]]]))));
+    let tens: Tensor3<usize, 2, 2, 3> =
+        Prism::build(Prism::build(Prism::build(Scalar::new(arr![
+            arr![arr![1, 2, 3], arr![4, 5, 6]],
+            arr![arr![7, 8, 9], arr![10, 11, 12]]
+        ]))));
     println!("{:?}", &mat);
     println!("{:?}", &tens);
     let flat: &Array<usize, U12> = unsafe { core::mem::transmute(&tens) };
@@ -1256,8 +1256,11 @@ pub fn foo() -> Tensor3<usize, 2, 2, 3> {
 }
 
 pub fn alignment() {
-    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1,2,3]));
-    let mat: Mat<usize, 2, 3>  = Prism::build(Prism::build(Scalar::new(arr![arr![1,2,3], arr![4,5,6]])));
+    let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
+    let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
+        arr![1, 2, 3],
+        arr![4, 5, 6]
+    ])));
     let mat2: Tensor3<usize, 3, 2, 3> = mat.align();
     // println!("mat: {:?}", mat);
     println!("mat2: {:?}", mat2);
@@ -1294,13 +1297,18 @@ where
     Ts: HyperMax<Ts2>,
     <Ts as HyperMax<Ts2>>::Output: Hyper,
 {
-    type Output = Prism<U, <Ts as HyperMax<Ts2>>::Output, N, <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions>;
+    type Output = Prism<
+        U,
+        <Ts as HyperMax<Ts2>>::Output,
+        N,
+        <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions,
+    >;
 }
 
 pub fn align2<Left, Right, LMax, RMax>(left: Left, right: Right) -> (LMax, RMax)
-    where
-    Left: HyperMax<Right, Output=LMax>,
-    Right: HyperMax<Left, Output=RMax>,
+where
+    Left: HyperMax<Right, Output = LMax>,
+    Right: HyperMax<Left, Output = RMax>,
     LMax: Hyper,
     RMax: Hyper,
     Left: Hyper<Elem = LMax::Elem> + HyperAlign<LMax>,
@@ -1310,9 +1318,9 @@ pub fn align2<Left, Right, LMax, RMax>(left: Left, right: Right) -> (LMax, RMax)
 }
 
 pub fn hypermax() {
-    let mat = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
-    let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1,2,3,4,5,6,7,8,9,10,11,12]);
-    type Max = <Vect::<usize, 1> as HyperMax<Mat::<usize, 2, 1>>>::Output;
+    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    type Max = <Vect<usize, 1> as HyperMax<Mat<usize, 2, 1>>>::Output;
     let res = std::any::type_name::<Max>();
     println!("Max: {:?}", res);
     let (mat_aligned, tens_aligned) = align2(mat, tens);
@@ -1322,19 +1330,15 @@ pub fn hypermax() {
     println!("tens_aligned: {:?}", &tens_aligned);
 }
 
-
-
 // pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
 // pub type Mat<T, R, C> = Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>;
 //                      Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>
 //                            Prism<i32, Prism<Array<i32, U3>, Scalar<Array<Array<i32, U3>, U2>>, U2, HNil>, U3, HCons<U2, HNil>>
 
-
 // Prism<i32, Prism<Array<i32, UInt<UInt<UTerm, B1>, B1>>, Scalar<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>>, UInt<UInt<UTerm, B1>, B0>, HNil>, UInt<UInt<UTerm, B1>, B1>, HCons<UInt<UInt<UTerm, B1>, B0>, HNil>>
 
 // Prism<T, Prism<Array<T, U3, Prism<Array<Array<T, U3, U2, Scalar<Array<Array<Array<T, U3, U2, U1>, U1, HNil>, U2, HCons<U1, HNil>>, U3, HCons<U2, HCons<U1, HNil>>>
 // Prism<T, Prism<Array<T, C, Prism<Array<Array<T, C, R, Scalar<Array<Array<Array<T, C, R, S>, S, HNil>, R, HCons<S, HNil>>, C, HCons<R, HCons<S, HNil>>>
-
 
 // Prism<i32, Prism<Array<i32, UInt<UInt<UTerm, B1>, B1>>, Prism<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>, Scalar<Array<Array<Array<i32, UInt<UInt<UTerm, B1>, B1>>, UInt<UInt<UTerm, B1>, B0>>, UInt<UTerm, B1>>>, UInt<UTerm, B1>, HNil>, UInt<UInt<UTerm, B1>, B0>, HCons<UInt<UTerm, B1>, HNil>>, UInt<UInt<UTerm, B1>, B1>, HCons<UInt<UInt<UTerm, B1>, B0>, HCons<UInt<UTerm, B1>, HNil>>>
 
@@ -1346,7 +1350,7 @@ mod tests {
 
     #[test]
     fn binary() {
-        let mat = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+        let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let vec = Vect::<usize, 3>::from_flat(arr![10, 20, 30]);
         let res = super::binary(mat, vec, |x, y| x + y);
         println!("{:?}", res);
@@ -1361,7 +1365,7 @@ mod tests {
     fn alignment() {
         super::alignment();
     }
-    
+
     #[test]
     fn foofoo() {
         let val = super::foo();
@@ -1453,7 +1457,7 @@ mod tests {
 
     #[test]
     fn flattening() {
-        let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
+        let flat = arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
         println!("{:?}", &flat);
         let tens = Tensor3::<usize, 2, 2, 3>::from_flat(flat);
         println!("{:?}", &tens);
@@ -1469,7 +1473,7 @@ mod tests {
     }
 }
 
-pub fn reshape_example(flat: Array<usize, U::<20>>) -> Tensor3::<usize, 2, 2, 5> {
+pub fn reshape_example(flat: Array<usize, U<20>>) -> Tensor3<usize, 2, 2, 5> {
     // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
     let tens = Tensor3::<usize, 2, 2, 5>::from_flat(flat);
     tens

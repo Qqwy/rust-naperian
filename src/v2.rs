@@ -866,7 +866,7 @@ where
     Ns: HList,
 {
     type Elem = T;
-    type Containing<X> = Prism<X, Ts::Containing<X>, N, Ns>;
+    type Containing<X> = Prism<X, Ts::Containing<GenericArray<X, N>>, N, Ns>;
 }
 
 pub trait Hyper: Sized {
@@ -1113,29 +1113,32 @@ impl<A, U> Mappable2<A, U> for Scalar<A> {
     }
 }
 
-impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
-where
-    N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable<A> + Container<Elem=T>,
-    Ts::Containing<A>: Hyper<Dimensions = Ns>,
-    Ns: HList,
-{
-    fn map(&self, fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map(fun);// .map(|inner| inner.map(&mut fun));
-        Prism(res, core::marker::PhantomData)
-    }
+// TODO might be incorrect
+// impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
+// where
+//     N: ArrayLength + NonZero,
+//     Ts: Hyper<Dimensions = Ns> + Mappable<A> + Container<Elem=T>,
+//     Ts::Containing<A>: Hyper<Dimensions = Ns>,
+//     Ns: HList,
+// {
+//     fn map(&self, fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+//         let res = self.0.map(fun);// .map(|inner| inner.map(&mut fun));
+//         Prism(res, core::marker::PhantomData)
+//     }
 
-    fn map_by_value(self, fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map_by_value(fun);// map_by_value(|inner| inner.map_by_value(&mut fun));
-        Prism(res, core::marker::PhantomData)
-    }
-}
+//     fn map_by_value(self, fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+//         let res = self.0.map_by_value(fun);// map_by_value(|inner| inner.map_by_value(&mut fun));
+//         Prism(res, core::marker::PhantomData)
+//     }
+// }
 
 // TODO might be incorrect
 impl<Ts, N, Ns, A, U> Mappable2<A, U> for Prism<A, Ts, N, Ns>
 where
+    Self: Hyper<Elem=A>,
+    Self::Containing<U>: Hyper<Elem=U, AmountOfElems = <Self as Hyper>::AmountOfElems>,
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable2<A, U> + Container<Elem=A>,
+    Ts: Hyper<Dimensions = Ns> + Mappable2<GenericArray<A, N>, U> + Container<Elem=A>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
@@ -1144,8 +1147,10 @@ where
         rhs: &'b Self::Containing<B>,
         fun: impl FnMut(&A, &'b B) -> U,
     ) -> Self::Containing<U> {
-        let res = self.0.map2(&rhs.0, fun);
-        Prism(res, PhantomData)
+        todo!()
+
+        // let res = self.0.map2(&rhs.0, |arr| { fun });
+        // Prism(res, PhantomData)
     }
 
     fn map2_by_value<B>(
@@ -1153,10 +1158,31 @@ where
         rhs: Self::Containing<B>,
         fun: impl FnMut(A, B) -> U,
     ) -> Self::Containing<U> {
-        let res = self.0.map2_by_value(rhs.0, fun);
-        Prism(res, PhantomData)
+        let flat_self = self.into_flat();
+        let flat_rhs = unsafe{ core::mem::transmute_copy(&rhs)}; // rhs.into_flat();
+        let flat_res = flat_self.map2_by_value(flat_rhs, fun);
+        Self::Containing::<U>::from_flat(flat_res)
+
+        // let res = self.0.map2_by_value(rhs.0, fun);
+        // Prism(res, PhantomData)
     }
 }
+
+pub fn binary<Left, Right, LMax, RMax, A, B, C>(left: Left, right: Right, fun: impl Fn(A, B) -> C) -> LMax::Containing<C>
+    where
+    Left: Hyper<Elem = A> + HyperMax<Right, Output=LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = B> + HyperMax<Left, Output=RMax> + HyperAlign<RMax>,
+    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax>,
+    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
+    LMax::Containing::<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    {
+        let (mleft, mright) = align2(left, right);
+    let flat_mleft = mleft.into_flat();
+    let flat_mright = mright.into_flat();
+    let flat_res = flat_mleft.map2_by_value(flat_mright, fun);
+    LMax::Containing::<C>::from_flat(flat_res)
+        // mleft.map2_by_value(mright, fun)
+    }
 
 pub mod aliases {
     use super::{Prism, Scalar, Array, HNil, HCons};
@@ -1237,13 +1263,14 @@ pub fn alignment() {
     println!("mat2: {:?}", mat2);
 }
 
+// TODO currently requires that both tensors have the same element type.
 pub trait HyperMax<Other> {
     type Output;
 }
-impl<T> HyperMax<Scalar<T>> for Scalar<T> {
+impl<T, U> HyperMax<Scalar<U>> for Scalar<T> {
     type Output = Scalar<T>;
 }
-impl<T, Ts, N, Ns> HyperMax<Scalar<T>> for Prism<T, Ts, N, Ns>
+impl<U, T, Ts, N, Ns> HyperMax<Scalar<U>> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
@@ -1251,15 +1278,15 @@ where
     type Output = Prism<T, Ts, N, Ns>;
 }
 
-impl<T, Ts, N, Ns> HyperMax<Prism<T, Ts, N, Ns>> for Scalar<T>
+impl<U, T, Ts, N, Ns> HyperMax<Prism<T, Ts, N, Ns>> for Scalar<U>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
 {
-    type Output = Prism<T, Ts, N, Ns>;
+    type Output = Prism<U, Ts, N, Ns>;
 }
 
-impl<T, Ts, Ts2, N, Ns, Ns2> HyperMax<Prism<T, Ts, N, Ns>> for Prism<T, Ts2, N, Ns2>
+impl<U, T, Ts, Ts2, N, Ns, Ns2> HyperMax<Prism<U, Ts, N, Ns>> for Prism<T, Ts2, N, Ns2>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
@@ -1267,15 +1294,17 @@ where
     Ts: HyperMax<Ts2>,
     <Ts as HyperMax<Ts2>>::Output: Hyper,
 {
-    type Output = Prism<T, <Ts as HyperMax<Ts2>>::Output, N, <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions>;
+    type Output = Prism<U, <Ts as HyperMax<Ts2>>::Output, N, <<Ts as HyperMax<Ts2>>::Output as Hyper>::Dimensions>;
 }
 
-pub fn align2<Left, Right, Max>(left: Left, right: Right) -> (Max, Max)
+pub fn align2<Left, Right, LMax, RMax>(left: Left, right: Right) -> (LMax, RMax)
     where
-    Left: HyperMax<Right, Output=Max>,
-    Max: Hyper,
-    Left: Hyper<Elem = Max::Elem> + HyperAlign<Max>,
-    Right: Hyper<Elem = Max::Elem> + HyperAlign<Max>,
+    Left: HyperMax<Right, Output=LMax>,
+    Right: HyperMax<Left, Output=RMax>,
+    LMax: Hyper,
+    RMax: Hyper,
+    Left: Hyper<Elem = LMax::Elem> + HyperAlign<LMax>,
+    Right: Hyper<Elem = RMax::Elem> + HyperAlign<RMax>,
 {
     (left.align(), right.align())
 }
@@ -1314,6 +1343,14 @@ pub fn hypermax() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn binary() {
+        let mat = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+        let vec = Vect::<usize, 3>::from_flat(arr![10, 20, 30]);
+        let res = super::binary(mat, vec, |x, y| x + y);
+        println!("{:?}", res);
+    }
 
     #[test]
     fn hypermax() {

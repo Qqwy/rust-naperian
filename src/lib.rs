@@ -245,7 +245,7 @@ impl<A, B> SubExecutor<B, TypeKindIsNotHyperLike> for Scalar<A>
 {
     type Output = Scalar<<A as Sub<B>>::Output>;
     fn do_sub(self, rhs: B) -> Self::Output {
-        println!("Boom");
+        // println!("Boom");
         Scalar(self.0 - rhs)
     }
 }
@@ -292,7 +292,7 @@ impl<A, B, As, N, Ns> SubExecutor<B, TypeKindIsNotHyperLike> for Prism<A, As, N,
 {
     type Output = <Self as Container>::Containing<<A as Sub<B>>::Output>;
     fn do_sub(self, rhs: B) -> Self::Output {
-        println!("PrismBoom");
+        // println!("PrismBoom");
         self.map_by_value(|x| Sub::sub(x, rhs.clone()))
     }
 }
@@ -341,24 +341,44 @@ where
 //     }
 // }
 
+pub fn align_subtraction() {
+    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
+    let res = mat - scalar;
+    println!("{:?}", res);
+
+    // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let res2 = Scalar::new(10i32) - 20i32;
+    println!("{:?}", res2);
+
+    let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let res3 = mat2 - 10;
+    println!("{:?}", res3);
+}
+
+pub fn subtract42(mat: Mat<i32, 2, 3>, val: i32) -> Mat<i32, 2, 3> {
+    mat - val
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn align_subtraction() {
-        let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
-        let res = mat - scalar;
-        println!("{:?}", res);
+        super::align_subtraction();
+        // let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        // let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
+        // let res = mat - scalar;
+        // println!("{:?}", res);
+
+        // // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        // let res2 = Scalar::new(10i32) - 20i32;
+        // println!("{:?}", res2);
 
         // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        let res2 = Scalar::new(10i32) - 20i32;
-        println!("{:?}", res2);
-
-        let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        let res3 = mat2 - 10;
-        println!("{:?}", res3);
+        // let res3 = mat2 - 10;
+        // println!("{:?}", res3);
     }
 
     #[test]

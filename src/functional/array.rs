@@ -28,7 +28,9 @@ where
         })
     }
     fn map_by_value(self, fun: impl FnMut(Self::Elem) -> U) -> Self::Containing<U> {
-        self.into_iter().map(fun).collect()
+        // self.into_iter().map(fun).collect()
+        use generic_array::functional::FunctionalSequence;
+        self.map(fun)
     }
 }
 

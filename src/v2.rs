@@ -773,7 +773,7 @@ where
 
 use frunk::hlist::{HCons, HList, HNil};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
 pub struct Scalar<T>(T);
 unsafe impl<T> Container for Scalar<T> {
@@ -810,7 +810,7 @@ where
 
 /// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
 /// but putting this restriction on the struct makes it impossible to implement certain traits.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
 pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>)
 where
@@ -1165,6 +1165,43 @@ where
     mleft.map2_by_value(mright, fun)
 }
 
+pub trait AutoMappable2<Right, LMax, RMax, A, B, C>
+    where
+    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
+    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
+    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
+    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+
+{
+    /// Neccessarily only works by value because the two tensors need to be aligned.
+    fn map2(self, right: Right, fun: impl FnMut(A, B) -> C) -> LMax::Containing<C> {
+        let (mself, mright) = align2(self, right);
+        mself.map2_by_value(mright, fun)
+    }
+}
+
+impl<Right, LMax, RMax, A, B, C> AutoMappable2<Right, LMax, RMax, A, B, C> for Scalar<A>
+where
+    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
+    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
+    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
+    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+{}
+
+
+impl<Right, LMax, RMax, A, B, C, Ts, N, Ns> AutoMappable2<Right, LMax, RMax, A, B, C> for Prism<A, Ts, N, Ns>
+where
+    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
+    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
+    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
+    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    N: ArrayLength + NonZero,
+    Ns: HList,
+{}
+
 pub mod aliases {
     use super::{Array, HCons, HNil, Prism, Scalar};
 
@@ -1345,8 +1382,12 @@ mod tests {
     fn binary() {
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let vec = Vect::<usize, 3>::from_flat(arr![10, 20, 30]);
-        let res = super::binary(mat, vec, |x, y| x + y);
+        let res = mat.map2(vec, |x, y| x + y);
         println!("{:?}", res);
+
+        let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let matsum = (&mat).map2(&mat, |x, y| x + y);
+        println!("matsum: {:?}", matsum);
     }
 
     #[test]

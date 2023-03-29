@@ -5,9 +5,9 @@
 //! Included in the crate for two reasons:
 //! 1. Sometimes used internally by the public-facing API
 //! 2. It can help you to understand how this crate is built/how faithful the implementation is to the paper.
-use core::ops::Mul;
-use core::iter::Sum;
 use crate::functional::{Container, Mappable2};
+use core::iter::Sum;
+use core::ops::Mul;
 
 /// Version of innerp precisely following the Naperian paper.
 ///

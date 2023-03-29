@@ -1,13 +1,13 @@
 //! Helper code to align Tensors of different (but compatible) shapes.
 
+use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
-use super::{Hyper, Scalar, Prism};
 use core::marker::PhantomData;
-use generic_array::ArrayLength;
+use frunk::hlist::{HCons, HList, HNil};
 use generic_array::sequence::{Lengthen, Shorten};
-use frunk::hlist::{HList, HCons, HNil};
+use generic_array::ArrayLength;
 use typenum::NonZero;
-use typenum::{Add1, Sub1, Prod, B1, B0};
+use typenum::{Add1, Prod, Sub1, B0, B1};
 
 pub trait Align<Other>
 where
@@ -26,7 +26,6 @@ where
         Other::hreplicate(self.0)
     }
 }
-
 
 impl<T, Ts, N, Ns, Other, DimensionsRest> Align<Other> for Prism<T, Ts, N, Ns>
 where
@@ -103,23 +102,24 @@ where
     (left.align(), right.align())
 }
 
-
-
 /// Helper subtrait to make trait bounds more readable.
 /// As: Maxed<Bs, AsAligned> means that 'AsAligned' is a Hyper just like As but having been aligned with the dimensions of Bs.
-pub trait Maxed<Other, SelfAligned>: HyperMax<Other, Output = SelfAligned> + Align<SelfAligned>
+pub trait Maxed<Other, SelfAligned>:
+    HyperMax<Other, Output = SelfAligned> + Align<SelfAligned>
 where
     SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
-{}
+{
+}
 impl<T, Other, SelfAligned> Maxed<Other, SelfAligned> for T
 where
     Self: HyperMax<Other, Output = SelfAligned> + Align<SelfAligned>,
     SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
-{}
+{
+}
 
 // TODO temporary code so we can use cargo asm
 pub fn hypermax() {
-    use crate::const_aliases::{Mat, Vect, Tensor3};
+    use crate::const_aliases::{Mat, Tensor3, Vect};
     use generic_array::arr;
     let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
     let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
@@ -133,11 +133,9 @@ pub fn hypermax() {
     println!("tens_aligned: {:?}", &tens_aligned);
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
 
     #[test]
     fn hypermax() {

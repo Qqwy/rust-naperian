@@ -1,5 +1,7 @@
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Traversable, Naperian, Dimension};
-
+use super::{
+    Apply, Container, Dimension, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom,
+    Traversable,
+};
 
 // TODO implement IntoIterator for Pair
 /// The simple example type from the Naperian paper.
@@ -84,7 +86,6 @@ impl<A, U> Mappable3<A, U> for Pair<A> {
     }
 }
 
-
 impl<G, A, B> Traversable<G, A, B> for Pair<A>
 where
     Self: Mappable<A> + Container<Containing<B> = Pair<B>>,
@@ -94,7 +95,6 @@ where
         fun(&self.0).map2_by_value(fun(&self.1), |one: B, two: B| Pair(one, two))
     }
 }
-
 
 impl<T> Naperian<T> for Pair<T> {
     type Log = bool;

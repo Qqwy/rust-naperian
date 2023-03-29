@@ -299,7 +299,7 @@ impl<G, A, B> Traversable<G, A, B> for Option<A>
 where
     Self: Mappable<A> + Container<Containing<B> = Option<B>>,
     G: Mappable<Option<B>> + Container<Elem = B>,
-Option<B>: New<B>,
+    Option<B>: New<B>,
     G::Containing<Option<B>>: New<Option<B>>,
 {
     fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Option<B>> {
@@ -309,8 +309,6 @@ Option<B>: New<B>,
         }
     }
 }
-
-
 
 pub trait Naperian<T>: Mappable<T> {
     type Log: Copy;
@@ -330,7 +328,6 @@ pub trait Naperian<T>: Mappable<T> {
     fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
     fn positions() -> Self::Containing<Self::Log>;
 }
-
 
 /// Anything that is a Dimension can be used one one rank of a hypercuboid.
 ///

@@ -1,18 +1,18 @@
 #![feature(type_name_of_val)]
 
+pub mod aliases;
+pub mod align;
 pub mod common;
+pub mod const_aliases;
 pub mod fin;
 pub mod functional;
-pub mod align;
 pub mod paper;
-pub mod aliases;
-pub mod const_aliases;
 
+use align::{align2, Align, Maxed};
 use common::Array;
 pub use const_aliases::*;
-pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply, Naperian};
+pub use functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
 use paper::innerp_orig;
-use align::{Maxed, align2, Align};
 use std::iter::Sum;
 use std::marker::PhantomData;
 use std::ops::Mul;
@@ -25,7 +25,6 @@ use typenum::consts::*;
 use typenum::operator_aliases::{Add1, Prod, Sub1};
 use typenum::U;
 use typenum::{NonZero, Unsigned};
-
 
 /// Transpose a F<G<A>> into G<F<A>> provided both F and G implement [`Naperian`].
 /// (and A: [`Clone`] since we need to copy a bunch of A's around.)
@@ -167,9 +166,9 @@ where
 #[repr(transparent)]
 pub struct Prism<T, Ts, N, Ns>(Ts, core::marker::PhantomData<(T, N, Ns)>);
 // where
-    // N: ArrayLength + NonZero,
-    // Ts: Hyper<Dimensions = Ns>,
-    // Ns: HList;
+// N: ArrayLength + NonZero,
+// Ts: Hyper<Dimensions = Ns>,
+// Ns: HList;
 
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
@@ -309,7 +308,6 @@ impl<T> Hyper for Scalar<T> {
     }
 }
 
-
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
@@ -356,8 +354,6 @@ where
     }
 
     fn hreplicate(elem: Self::Elem) -> Self {
-        // todo!()
-        // Prism::new(elem)
         Prism(Ts::hreplicate(New::new(elem)), core::marker::PhantomData)
     }
 
@@ -377,7 +373,6 @@ where
         unsafe { core::mem::transmute_copy(&arr) }
     }
 }
-
 
 impl<T, A> Mappable<A> for Scalar<T> {
     fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
@@ -409,17 +404,17 @@ impl<A, U> Mappable2<A, U> for Scalar<A> {
 impl<T, Ts, N, Ns, A> Mappable<A> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable<Array<A, N>> + Container<Elem=Array<T, N>>,
+    Ts: Hyper<Dimensions = Ns> + Mappable<Array<A, N>> + Container<Elem = Array<T, N>>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
     fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map(|arr| { arr.map(&mut fun) });
+        let res = self.0.map(|arr| arr.map(&mut fun));
         Prism(res, core::marker::PhantomData)
     }
 
     fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
-        let res = self.0.map_by_value(|arr| { arr.map_by_value(&mut fun) });
+        let res = self.0.map_by_value(|arr| arr.map_by_value(&mut fun));
         Prism(res, core::marker::PhantomData)
     }
 }
@@ -438,9 +433,9 @@ where
         rhs: &'b Self::Containing<B>,
         mut fun: impl FnMut(&A, &'b B) -> U,
     ) -> Self::Containing<U> {
-        let new_ts = self.0.map2(&rhs.0, |self_arr, rhs_arr| {
-            self_arr.map2(rhs_arr, &mut fun)
-        });
+        let new_ts = self
+            .0
+            .map2(&rhs.0, |self_arr, rhs_arr| self_arr.map2(rhs_arr, &mut fun));
         Prism(new_ts, PhantomData)
     }
 
@@ -465,7 +460,10 @@ where
     As: Hyper<Elem = A> + Maxed<Bs, AsAligned>,
     Bs: Hyper<Elem = B> + Maxed<As, BsAligned>,
     Cs: Hyper<Elem = C>,
-    AsAligned: Container<Containing<B> = BsAligned> + Container<Containing<C> = Cs> + Hyper<Elem = A> + Mappable2<A, C>,
+    AsAligned: Container<Containing<B> = BsAligned>
+        + Container<Containing<C> = Cs>
+        + Hyper<Elem = A>
+        + Mappable2<A, C>,
     BsAligned: Container + Hyper<Elem = B, AmountOfElems = AsAligned::AmountOfElems>,
 {
     let (mleft, mright) = align2(left, right);
@@ -473,13 +471,15 @@ where
 }
 
 pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
-    where
+where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
-    SelfAligned: Container<Containing<B> = BsAligned> + Container<Containing<C> = Cs> + Hyper<Elem = A> + Mappable2<A, C>,
-    BsAligned:   Container + Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>,
-
+    SelfAligned: Container<Containing<B> = BsAligned>
+        + Container<Containing<C> = Cs>
+        + Hyper<Elem = A>
+        + Mappable2<A, C>,
+    BsAligned: Container + Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>,
 {
     /// Neccessarily only works by value because the two tensors need to be aligned.
     fn map2(self, right: Bs, fun: impl FnMut(A, B) -> C) -> Cs {
@@ -488,28 +488,37 @@ pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     }
 }
 
-impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Scalar<A>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
+    for Scalar<A>
 where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
-    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
-    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
-{}
+    SelfAligned: Hyper<Elem = A>
+        + Container<Containing<B> = BsAligned>
+        + Mappable2<A, C>
+        + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>
+        + Container<Containing<B> = BsAligned>,
+{
+}
 
-
-impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns>
+    AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
 where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
-    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
-    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
+    SelfAligned: Hyper<Elem = A>
+        + Container<Containing<B> = BsAligned>
+        + Mappable2<A, C>
+        + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>
+        + Container<Containing<B> = BsAligned>,
     N: ArrayLength + NonZero,
     Ns: HList,
-{}
-
-
+{
+}
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
@@ -541,7 +550,6 @@ pub fn alignment() {
     // println!("mat: {:?}", mat);
     println!("mat2: {:?}", mat2);
 }
-
 
 // pub type Mat<T, Rows, Cols> = Prism<T  , Vect<Array<T, Rows>, Cols>, Cols, HCons<Rows, HNil>>;
 // pub type Mat<T, R, C> = Prism<T, Prism<Array<T, C>, Scalar<Array<Array<T, C>, R>>, R, HNil>, C, HCons<R, HNil>>;

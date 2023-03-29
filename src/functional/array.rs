@@ -4,10 +4,10 @@
 
 use crate::common::Array;
 use crate::fin::Fin;
-use generic_array::ArrayLength;
 use generic_array::sequence::GenericSequence;
+use generic_array::ArrayLength;
 
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Naperian, Dimension};
+use super::{Apply, Container, Dimension, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
 
 unsafe impl<T, N> Container for Array<T, N>
 where

@@ -11,11 +11,14 @@ pub mod hyper;
 
 use align::{align2, Align, Maxed};
 use common::Array;
-pub use const_aliases::*;
-pub use functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
-pub use fin::Fin;
+
+
+use functional::{Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom};
 use paper::innerp_orig;
 use hyper::{Hyper, Scalar, Prism, binary};
+
+#[doc(inline)]
+pub use const_aliases::*;
 
 use std::iter::Sum;
 use std::marker::PhantomData;
@@ -30,8 +33,8 @@ use typenum::U;
 use typenum::{NonZero, Unsigned};
 use frunk::hlist::{HCons, HList, HNil};
 
-/// Transpose a F<G<A>> into G<F<A>> provided both F and G implement [`Naperian`].
-/// (and A: [`Clone`] since we need to copy a bunch of A's around.)
+/// Transpose a `F<G<A>>` into `G<F<A>>` provided both `F` and `G` implement [`Naperian`].
+/// (and A: [`Clone`] since we need to copy a bunch of `A`'s around.)
 ///
 /// There is no need to implement this trait manually since there is a blanket implementation
 /// for all types implementing Naperian.

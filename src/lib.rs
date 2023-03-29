@@ -530,10 +530,10 @@ pub fn binary<As, Bs, AsAligned, BsAligned, Cs, A, B, C>(
     left: As,
     right: Bs,
     fun: impl Fn(A, B) -> C,
-) -> Cs 
+) -> Cs
 where
-    As: Hyper<Elem = A> + HyperMax<Bs, Output = AsAligned> + HyperAlign<AsAligned>,
-    Bs: Hyper<Elem = B> + HyperMax<As, Output = BsAligned> + HyperAlign<BsAligned>,
+    As: Hyper<Elem = A> + Maxed<Bs, AsAligned>,
+    Bs: Hyper<Elem = B> + Maxed<As, BsAligned>,
     Cs: Hyper<Elem = C>,
     AsAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
     BsAligned: Hyper<Elem = B, AmountOfElems = AsAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
@@ -544,8 +544,8 @@ where
 
 pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     where
-    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
-    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
     BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
@@ -560,8 +560,8 @@ pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
 
 impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Scalar<A>
 where
-    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
-    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
     BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
@@ -570,13 +570,25 @@ where
 
 impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
 where
-    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
-    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
     BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
     N: ArrayLength + NonZero,
     Ns: HList,
+{}
+
+/// Helper subtrait to make trait bounds more readable.
+/// As: Maxed<Bs, AsAligned> means that 'AsAligned' is a Hyper just like As but having been aligned with the dimensions of Bs.
+pub trait Maxed<Other, SelfAligned>: HyperMax<Other, Output = SelfAligned> + HyperAlign<SelfAligned>
+    where
+    SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
+{}
+impl<T, Other, SelfAligned> Maxed<Other, SelfAligned> for T
+where
+    Self: HyperMax<Other, Output = SelfAligned> + HyperAlign<SelfAligned>,
+    SelfAligned: Hyper<Elem = <Self as Hyper>::Elem>,
 {}
 
 pub mod aliases {
@@ -713,8 +725,8 @@ where
 
 pub fn align2<Left, Right, LMax, RMax>(left: Left, right: Right) -> (LMax, RMax)
 where
-    Left: Hyper<Elem = LMax::Elem> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = RMax::Elem> + HyperMax<Left, Output = RMax> + HyperAlign<RMax>,
+    Left: Hyper<Elem = LMax::Elem> + Maxed<Right, LMax>,
+    Right: Hyper<Elem = RMax::Elem> + Maxed<Left, RMax>,
     LMax: Hyper,
     RMax: Hyper,
 {

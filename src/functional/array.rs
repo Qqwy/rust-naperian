@@ -72,12 +72,14 @@ impl<A, U, N: ArrayLength> Mappable2<A, U> for Array<A, N> {
     fn map2_by_value<B>(
         self,
         rhs: Self::Containing<B>,
-        mut fun: impl FnMut(A, B) -> U,
+        fun: impl FnMut(A, B) -> U,
     ) -> Self::Containing<U> {
-        self.into_iter()
-            .zip(rhs)
-            .map(|(left, right)| fun(left, right))
-            .collect()
+        use generic_array::functional::FunctionalSequence;
+        self.zip(rhs, fun)
+        // self.into_iter()
+        //     .zip(rhs)
+        //     .map(|(left, right)| fun(left, right))
+        //     .collect()
     }
 }
 

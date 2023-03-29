@@ -526,55 +526,55 @@ where
     }
 }
 
-pub fn binary<Left, Right, LMax, RMax, A, B, C>(
-    left: Left,
-    right: Right,
+pub fn binary<As, Bs, AsAligned, BsAligned, Cs, A, B, C>(
+    left: As,
+    right: Bs,
     fun: impl Fn(A, B) -> C,
-) -> LMax::Containing<C>
+) -> Cs 
 where
-    Left: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = B> + HyperMax<Left, Output = RMax> + HyperAlign<RMax>,
-    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
-    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
-    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    As: Hyper<Elem = A> + HyperMax<Bs, Output = AsAligned> + HyperAlign<AsAligned>,
+    Bs: Hyper<Elem = B> + HyperMax<As, Output = BsAligned> + HyperAlign<BsAligned>,
+    Cs: Hyper<Elem = C>,
+    AsAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = AsAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
 {
     let (mleft, mright) = align2(left, right);
     mleft.map2_by_value(mright, fun)
 }
 
-pub trait AutoMappable2<Right, LMax, RMax, A, B, C>
+pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     where
-    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
-    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
-    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
-    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
+    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Cs: Hyper<Elem = C>,
+    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
 
 {
     /// Neccessarily only works by value because the two tensors need to be aligned.
-    fn map2(self, right: Right, fun: impl FnMut(A, B) -> C) -> LMax::Containing<C> {
+    fn map2(self, right: Bs, fun: impl FnMut(A, B) -> C) -> Cs {
         let (mself, mright) = align2(self, right);
         mself.map2_by_value(mright, fun)
     }
 }
 
-impl<Right, LMax, RMax, A, B, C> AutoMappable2<Right, LMax, RMax, A, B, C> for Scalar<A>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Scalar<A>
 where
-    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
-    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
-    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
-    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
+    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Cs: Hyper<Elem = C>,
+    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
 {}
 
 
-impl<Right, LMax, RMax, A, B, C, Ts, N, Ns> AutoMappable2<Right, LMax, RMax, A, B, C> for Prism<A, Ts, N, Ns>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
 where
-    Self: Hyper<Elem = A> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
-    Right: Hyper<Elem = B> + HyperMax<Self, Output = RMax> + HyperAlign<RMax>,
-    LMax: Hyper<Elem = A> + Container<Containing<B> = RMax> + Mappable2<A, C>,
-    RMax: Hyper<Elem = B, AmountOfElems = LMax::AmountOfElems> + Container<Containing<B> = RMax>,
-    LMax::Containing<C>: Hyper<Elem = C, AmountOfElems = LMax::AmountOfElems>,
+    Self: Hyper<Elem = A> + HyperMax<Bs, Output = SelfAligned> + HyperAlign<SelfAligned>,
+    Bs: Hyper<Elem = B> + HyperMax<Self, Output = BsAligned> + HyperAlign<BsAligned>,
+    Cs: Hyper<Elem = C>,
+    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
+    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
     N: ArrayLength + NonZero,
     Ns: HList,
 {}
@@ -640,7 +640,7 @@ pub mod const_aliases {
         HCons<U<ROWS>, HCons<U<SLICES>, HNil>>,
     >;
 }
-use const_aliases::*;
+pub use const_aliases::*;
 
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     let v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));

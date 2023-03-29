@@ -133,9 +133,18 @@ where
 
 /// The meat of the crate. Hyper is implemented by any Vect, Mat, and other Tensor-like type.
 ///
+/// The only two structs which implement [`Hyper`] are [`Scalar`] and [`Prism`].
+///
+/// But instead of manipulating those directly, it is nicer to use the following type aliases:
+/// - [`Scalar`] for when you have a single value. <sub>(A single [`Scalar`])</sub>
+/// - [`Vect`] A one-dimensional collection with fixed size. <sub>(A [`Prism`] of [`Scalar`]s)</sub>
+/// - [`Mat`] A two-dimensional collection with rows and columns. <sub>(A [`Prism`] of [`Vect`]s)</sub>
+/// - [`Tensor3`] A three-dimensional collection. <sub>(A [`Prism`] of [`Mat`]s)</sub>
+/// - [`Tensor4`] A four-dimensional collection. <sub>(A [`Prism`] of [`Tensor3`]s)</sub>
+///
 /// # Implementation details
 ///
-/// This is aRust implementation of the the Hyper GADT from the Naperian paper.
+/// This is a Rust implementation of the the Hyper GADT from the Naperian paper.
 ///
 ///
 /// Because Rust does not support GADTs, the type was turned into this trait,
@@ -163,7 +172,7 @@ pub trait Hyper: Sized {
     /// - For [`Vect`], this is `Array<Elem, N>`
     /// - For [`Mat`], this is `Array<Array<Elem, Cols>, Rows>`
     /// - For [`Tensor3`], this is `Array<Array<Array<Elem, Cols>, Rows>, Slices>`
-    /// etc.
+    /// - ... etc.
     type Orig;
 
     /// Type-level number representing the rank (number of dimensions) of the Hyper.
@@ -403,6 +412,13 @@ where
     }
 }
 
+
+/// Map a binary (two-parameter) function over two [`Hyper`]s.
+///
+/// This method will work with `As` and `Bs` being Hypers of different ranks,
+/// which will automatically be aligned before calling the mapping function.
+///
+/// Freestanding version of [`HyperMappable2::map2`].
 pub fn binary<As, Bs, AsAligned, BsAligned, Cs, A, B, C>(
     left: As,
     right: Bs,
@@ -422,7 +438,15 @@ where
     mleft.map2_by_value(mright, fun)
 }
 
-pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
+/// Map a binary (two-parameter) function over two [`Hyper`]s.
+///
+/// The difference between this trait and [`Mappable2`],
+/// is that this trait will work with `As` and `Bs` being Hypers of different ranks,
+/// which will automatically be aligned before calling the mapping function.
+///
+/// The advantage is flexibility.
+/// The disadvantage is that [`HyperMappable2::map2`] by necessity can only work by-value.
+pub trait HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
 where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
@@ -433,14 +457,19 @@ where
         + Mappable2<A, C>,
     BsAligned: Container + Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>,
 {
-    /// Neccessarily only works by value because the two tensors need to be aligned.
+    /// Map a binary (two-parameter) function over two [`Hyper`]s.
+    ///
+    /// Neccessarily works by value because the two tensors need to be aligned,
+    /// which requires copying some of their elements.
+    ///
+    /// Trait version of the freestanding function [`binary`].
     fn map2(self, right: Bs, fun: impl FnMut(A, B) -> C) -> Cs {
         let (mself, mright) = align2(self, right);
         mself.map2_by_value(mright, fun)
     }
 }
 
-impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     for Scalar<A>
 where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
@@ -456,7 +485,7 @@ where
 }
 
 impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns>
-    AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
+    HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
 where
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,

@@ -18,7 +18,7 @@ use common::Array;
 use functional::{Container, Mappable, Mappable2, Naperian, New};
 use compat::{Elem, Tensor, TensorCompatible};
 
-use hyper::AutoMappable2;
+use hyper::HyperMappable2;
 #[doc(inline)]
 pub use hyper::Hyper;
 use hyper::{Prism, Scalar};
@@ -191,7 +191,7 @@ impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubImpl<HypB, Tensor> 
 where
     HypB: TensorCompatible<Kind = Tensor>,
 
-    Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+    Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
     HypA: Hyper<Elem = A>,
     HypB: Hyper<Elem = B>,
     A: Sub<B, Output = C>,
@@ -226,7 +226,7 @@ where
     HypB: TensorCompatible<Kind = Tensor>,
 
 
-    Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+    Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
     HypA: Hyper<Elem = A>,
     HypB: Hyper<Elem = B>,
     A: Sub<B, Output = C>,
@@ -286,7 +286,7 @@ pub fn align_subtraction() {
     println!("{:?}", res2);
 
     let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res3 = mat2 - "hello";
+    let res3 = mat2 - 10;
     println!("{:?}", res3);
 }
 
@@ -317,7 +317,7 @@ mod tests {
 
     #[test]
     fn binary() {
-        use hyper::AutoMappable2;
+        use hyper::HyperMappable2;
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let vec = Vect::<usize, 3>::from_flat(arr![10, 20, 30]);
         let res = mat.map2(vec, |x, y| x + y);

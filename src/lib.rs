@@ -229,11 +229,35 @@ impl IsTypeHyperLike for usize {
     type HyperLike = TypeKindIsNotHyperLike;
 }
 
+impl IsTypeHyperLike for isize {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
 impl IsTypeHyperLike for i32 {
     type HyperLike = TypeKindIsNotHyperLike;
 }
 
-pub trait SubExecutor<T: IsTypeHyperLike, HL = <T as IsTypeHyperLike>::HyperLike> {
+impl IsTypeHyperLike for i64 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+impl IsTypeHyperLike for u32 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+impl IsTypeHyperLike for u64 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+impl IsTypeHyperLike for i8 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+impl IsTypeHyperLike for u8 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+trait SubExecutor<T: IsTypeHyperLike, HL = <T as IsTypeHyperLike>::HyperLike> {
     type Output;
     fn do_sub(self, rhs: T) -> Self::Output;
 }
@@ -270,13 +294,13 @@ where
     }
 }
 
-impl<A, B, Selector> Sub<B> for Scalar<A>
+impl<A, B, Selector, C> Sub<B> for Scalar<A>
     where
-    Self: SubExecutor<B, Selector>,
+    Self: SubExecutor<B, Selector, Output = C>,
     B: IsTypeHyperLike<HyperLike = Selector>,
     Selector: TypeKind,
 {
-    type Output = <Self as SubExecutor<B, Selector>>::Output;
+    type Output = C; //<Self as SubExecutor<B, Selector>>::Output;
     fn sub(self, rhs: B) -> Self::Output {
         self.do_sub(rhs)
     }
@@ -318,13 +342,13 @@ where
     }
 }
 
-impl<A, B, Selector, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
+impl<A, B, C, Selector, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
 where
-    Self: SubExecutor<B, Selector>,
+    Self: SubExecutor<B, Selector, Output = C>,
     B: IsTypeHyperLike<HyperLike = Selector>,
     Selector: TypeKind,
 {
-    type Output = <Self as SubExecutor<B, Selector>>::Output;
+    type Output = C;
     fn sub(self, rhs: B) -> Self::Output {
         self.do_sub(rhs)
     }
@@ -356,8 +380,8 @@ pub fn align_subtraction() {
     println!("{:?}", res3);
 }
 
-pub fn subtract42(mat: Mat<i32, 2, 3>, val: i32) -> Mat<i32, 2, 3> {
-    mat - val
+pub fn subtract42(mat: Mat<i8, 64, 64>) -> Mat<i8, 64, 64> {
+    mat - 42
 }
 
 #[cfg(test)]

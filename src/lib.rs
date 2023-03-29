@@ -203,68 +203,17 @@ use core::ops::Sub;
 //         self.map2(rhs, Sub::sub)
 //     }
 // }
+pub mod compat;
+use compat::{Elem, Tensor, TensorCompatible};
 
-pub enum TypeKindIsHyperLike{}
-pub enum TypeKindIsNotHyperLike{}
-pub trait TypeKind {}
-impl TypeKind for TypeKindIsHyperLike {}
-impl TypeKind for TypeKindIsNotHyperLike {}
-pub trait IsTypeHyperLike {
-    type HyperLike: TypeKind;
-}
-trait HyperLike: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike> {}
-trait NotHyperLike: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike> {}
-
-impl<T: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>> HyperLike for T {}
-impl<T: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>> NotHyperLike for T {}
-
-impl<T> IsTypeHyperLike for Scalar<T> {
-    type HyperLike = TypeKindIsHyperLike;
-}
-impl<T, Ts, N, Ns> IsTypeHyperLike for Prism<T, Ts, N, Ns> {
-    type HyperLike = TypeKindIsHyperLike;
-}
-
-impl IsTypeHyperLike for usize {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for isize {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for i32 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for i64 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for u32 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for u64 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for i8 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-impl IsTypeHyperLike for u8 {
-    type HyperLike = TypeKindIsNotHyperLike;
-}
-
-trait SubExecutor<T: IsTypeHyperLike, HL = <T as IsTypeHyperLike>::HyperLike> {
+trait SubExecutor<T: TensorCompatible, HL = <T as TensorCompatible>::Kind> {
     type Output;
     fn do_sub(self, rhs: T) -> Self::Output;
 }
 
-impl<A, B> SubExecutor<B, TypeKindIsNotHyperLike> for Scalar<A>
+impl<A, B> SubExecutor<B, Elem> for Scalar<A>
     where
-    B: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>,
+    B: TensorCompatible<Kind = Elem>,
     A: Sub<B>,
 {
     type Output = Scalar<<A as Sub<B>>::Output>;
@@ -274,13 +223,13 @@ impl<A, B> SubExecutor<B, TypeKindIsNotHyperLike> for Scalar<A>
     }
 }
 
-impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubExecutor<HypB, TypeKindIsHyperLike> for Scalar<A>
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubExecutor<HypB, Tensor> for Scalar<A>
 where
-    HypB: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>,
+    HypB: TensorCompatible<Kind = Tensor>,
 
     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-    HypA: Hyper<Elem = A> + HyperLike,
-    HypB: Hyper<Elem = B> + HyperLike,
+    HypA: Hyper<Elem = A>,
+    HypB: Hyper<Elem = B>,
     A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
@@ -294,11 +243,10 @@ where
     }
 }
 
-impl<A, B, Selector, C> Sub<B> for Scalar<A>
+impl<A, B, Kind, C> Sub<B> for Scalar<A>
     where
-    Self: SubExecutor<B, Selector, Output = C>,
-    B: IsTypeHyperLike<HyperLike = Selector>,
-    Selector: TypeKind,
+    Self: SubExecutor<B, Kind, Output = C>,
+    B: TensorCompatible<Kind = Kind>,
 {
     type Output = C; //<Self as SubExecutor<B, Selector>>::Output;
     fn sub(self, rhs: B) -> Self::Output {
@@ -307,28 +255,27 @@ impl<A, B, Selector, C> Sub<B> for Scalar<A>
 }
 
 
-impl<A, B, As, N, Ns> SubExecutor<B, TypeKindIsNotHyperLike> for Prism<A, As, N, Ns>
+impl<A, B, As, N, Ns> SubExecutor<B, Elem> for Prism<A, As, N, Ns>
     where
-    B: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>,
+    B: TensorCompatible<Kind = Elem>,
     A: Sub<B>,
     Self: Mappable<<A as Sub<B>>::Output> + Container<Elem = A>,
     B: Clone,
 {
     type Output = <Self as Container>::Containing<<A as Sub<B>>::Output>;
     fn do_sub(self, rhs: B) -> Self::Output {
-        // println!("PrismBoom");
         self.map_by_value(|x| Sub::sub(x, rhs.clone()))
     }
 }
 
-impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubExecutor<HypB, TypeKindIsHyperLike> for Prism<A, As, N, Ns>
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubExecutor<HypB, Tensor> for Prism<A, As, N, Ns>
 where
-    HypB: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>,
+    HypB: TensorCompatible<Kind = Tensor>,
 
 
     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-    HypA: Hyper<Elem = A> + HyperLike,
-    HypB: Hyper<Elem = B> + HyperLike,
+    HypA: Hyper<Elem = A>,
+    HypB: Hyper<Elem = B>,
     A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
@@ -342,11 +289,10 @@ where
     }
 }
 
-impl<A, B, C, Selector, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
+impl<A, B, C, Kind, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
 where
-    Self: SubExecutor<B, Selector, Output = C>,
-    B: IsTypeHyperLike<HyperLike = Selector>,
-    Selector: TypeKind,
+    Self: SubExecutor<B, Kind, Output = C>,
+    B: TensorCompatible<Kind = Kind>,
 {
     type Output = C;
     fn sub(self, rhs: B) -> Self::Output {

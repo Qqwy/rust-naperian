@@ -1122,33 +1122,30 @@ where
     Self: Hyper<Elem = A>,
     Self::Containing<U>: Hyper<Elem = U, AmountOfElems = <Self as Hyper>::AmountOfElems>,
     N: ArrayLength + NonZero,
-    Ts: Hyper<Dimensions = Ns> + Mappable2<GenericArray<A, N>, U> + Container<Elem = A>,
+    Ts: Hyper<Dimensions = Ns> + Mappable2<Array<A, N>, Array<U, N>> + Container<Elem = A>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
     Ns: HList,
 {
     fn map2<'b, B: 'b>(
         &self,
         rhs: &'b Self::Containing<B>,
-        fun: impl FnMut(&A, &'b B) -> U,
+        mut fun: impl FnMut(&A, &'b B) -> U,
     ) -> Self::Containing<U> {
-        todo!()
-
-        // let res = self.0.map2(&rhs.0, |arr| { fun });
-        // Prism(res, PhantomData)
+        let new_ts = self.0.map2(&rhs.0, |self_arr, rhs_arr| {
+            self_arr.map2(rhs_arr, &mut fun)
+        });
+        Prism(new_ts, PhantomData)
     }
 
     fn map2_by_value<B>(
         self,
         rhs: Self::Containing<B>,
-        fun: impl FnMut(A, B) -> U,
+        mut fun: impl FnMut(A, B) -> U,
     ) -> Self::Containing<U> {
-        let flat_self = self.into_flat();
-        let flat_rhs = unsafe { core::mem::transmute_copy(&rhs) }; // rhs.into_flat();
-        let flat_res = flat_self.map2_by_value(flat_rhs, fun);
-        Self::Containing::<U>::from_flat(flat_res)
-
-        // let res = self.0.map2_by_value(rhs.0, fun);
-        // Prism(res, PhantomData)
+        let new_ts = self.0.map2_by_value(rhs.0, |self_arr, rhs_arr| {
+            self_arr.map2_by_value(rhs_arr, &mut fun)
+        });
+        Prism(new_ts, PhantomData)
     }
 }
 

@@ -494,8 +494,8 @@ where
     As: Hyper<Elem = A> + Maxed<Bs, AsAligned>,
     Bs: Hyper<Elem = B> + Maxed<As, BsAligned>,
     Cs: Hyper<Elem = C>,
-    AsAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
-    BsAligned: Hyper<Elem = B, AmountOfElems = AsAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
+    AsAligned: Container<Containing<B> = BsAligned> + Container<Containing<C> = Cs> + Hyper<Elem = A> + Mappable2<A, C>,
+    BsAligned: Container + Hyper<Elem = B, AmountOfElems = AsAligned::AmountOfElems>,
 {
     let (mleft, mright) = align2(left, right);
     mleft.map2_by_value(mright, fun)
@@ -506,8 +506,8 @@ pub trait AutoMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
-    SelfAligned: Hyper<Elem = A> + Container<Containing<B> = BsAligned> + Mappable2<A, C> + Container<Containing<C> = Cs>,
-    BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems> + Container<Containing<B> = BsAligned>,
+    SelfAligned: Container<Containing<B> = BsAligned> + Container<Containing<C> = Cs> + Hyper<Elem = A> + Mappable2<A, C>,
+    BsAligned:   Container + Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>,
 
 {
     /// Neccessarily only works by value because the two tensors need to be aligned.

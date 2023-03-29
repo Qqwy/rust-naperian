@@ -166,11 +166,97 @@ pub fn alignment() {
 }
 
 use core::ops::Sub;
-impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned> Sub<HypB> for Scalar<A>
+// impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned> Sub<HypB> for Scalar<A>
+// where
+//     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+//     HypA: Hyper<Elem = A> + HyperLike,
+//     HypB: Hyper<Elem = B> + HyperLike,
+//     A: Sub<B, Output = C>,
+//     HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
+//     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+//     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
+//     HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
+//     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
+// {
+//     type Output = HypC;
+
+//     fn sub(self, rhs: HypB) -> HypC {
+//         self.map2(rhs, Sub::sub)
+//     }
+// }
+
+// impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned, As, N, Ns> Sub<HypB> for Prism<A, As, N, Ns>
+// where
+//     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+//     HypA: Hyper<Elem = A> + HyperLike,
+//     HypB: Hyper<Elem = B> + HyperLike,
+//     A: Sub<B, Output = C>,
+//     HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
+//     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+//     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
+//     HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
+//     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
+// {
+//     type Output = HypC;
+
+//     fn sub(self, rhs: HypB) -> HypC {
+//         self.map2(rhs, Sub::sub)
+//     }
+// }
+
+pub enum TypeKindIsHyperLike{}
+pub enum TypeKindIsNotHyperLike{}
+pub trait TypeKind {}
+impl TypeKind for TypeKindIsHyperLike {}
+impl TypeKind for TypeKindIsNotHyperLike {}
+pub trait IsTypeHyperLike {
+    type HyperLike: TypeKind;
+}
+trait HyperLike: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike> {}
+trait NotHyperLike: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike> {}
+
+impl<T: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>> HyperLike for T {}
+impl<T: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>> NotHyperLike for T {}
+
+impl<T> IsTypeHyperLike for Scalar<T> {
+    type HyperLike = TypeKindIsHyperLike;
+}
+impl<T, Ts, N, Ns> IsTypeHyperLike for Prism<T, Ts, N, Ns> {
+    type HyperLike = TypeKindIsHyperLike;
+}
+
+impl IsTypeHyperLike for usize {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+impl IsTypeHyperLike for i32 {
+    type HyperLike = TypeKindIsNotHyperLike;
+}
+
+pub trait SubExecutor<T: IsTypeHyperLike, HL = <T as IsTypeHyperLike>::HyperLike> {
+    type Output;
+    fn do_sub(self, rhs: T) -> Self::Output;
+}
+
+impl<A, B> SubExecutor<B, TypeKindIsNotHyperLike> for Scalar<A>
+    where
+    B: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>,
+    A: Sub<B>,
+{
+    type Output = Scalar<<A as Sub<B>>::Output>;
+    fn do_sub(self, rhs: B) -> Self::Output {
+        println!("Boom");
+        Scalar(self.0 - rhs)
+    }
+}
+
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubExecutor<HypB, TypeKindIsHyperLike> for Scalar<A>
 where
+    HypB: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>,
+
     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-    HypA: Hyper<Elem = A>,
-    HypB: Hyper<Elem = B>,
+    HypA: Hyper<Elem = A> + HyperLike,
+    HypB: Hyper<Elem = B> + HyperLike,
     A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
@@ -179,17 +265,46 @@ where
     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
 {
     type Output = HypC;
-
-    fn sub(self, rhs: HypB) -> HypC {
+    fn do_sub(self, rhs: HypB) -> HypC {
         self.map2(rhs, Sub::sub)
     }
 }
 
-impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned, As, N, Ns> Sub<HypB> for Prism<A, As, N, Ns>
+impl<A, B, Selector> Sub<B> for Scalar<A>
+    where
+    Self: SubExecutor<B, Selector>,
+    B: IsTypeHyperLike<HyperLike = Selector>,
+    Selector: TypeKind,
+{
+    type Output = <Self as SubExecutor<B, Selector>>::Output;
+    fn sub(self, rhs: B) -> Self::Output {
+        self.do_sub(rhs)
+    }
+}
+
+
+impl<A, B, As, N, Ns> SubExecutor<B, TypeKindIsNotHyperLike> for Prism<A, As, N, Ns>
+    where
+    B: IsTypeHyperLike<HyperLike = TypeKindIsNotHyperLike>,
+    A: Sub<B>,
+    Self: Mappable<<A as Sub<B>>::Output> + Container<Elem = A>,
+    B: Clone,
+{
+    type Output = <Self as Container>::Containing<<A as Sub<B>>::Output>;
+    fn do_sub(self, rhs: B) -> Self::Output {
+        println!("PrismBoom");
+        self.map_by_value(|x| Sub::sub(x, rhs.clone()))
+    }
+}
+
+impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubExecutor<HypB, TypeKindIsHyperLike> for Prism<A, As, N, Ns>
 where
+    HypB: IsTypeHyperLike<HyperLike = TypeKindIsHyperLike>,
+
+
     Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
-    HypA: Hyper<Elem = A>,
-    HypB: Hyper<Elem = B>,
+    HypA: Hyper<Elem = A> + HyperLike,
+    HypB: Hyper<Elem = B> + HyperLike,
     A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
@@ -198,11 +313,33 @@ where
     HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
 {
     type Output = HypC;
-
-    fn sub(self, rhs: HypB) -> HypC {
+    fn do_sub(self, rhs: HypB) -> HypC {
         self.map2(rhs, Sub::sub)
     }
 }
+
+impl<A, B, Selector, As, N, Ns> Sub<B> for Prism<A, As, N, Ns>
+where
+    Self: SubExecutor<B, Selector>,
+    B: IsTypeHyperLike<HyperLike = Selector>,
+    Selector: TypeKind,
+{
+    type Output = <Self as SubExecutor<B, Selector>>::Output;
+    fn sub(self, rhs: B) -> Self::Output {
+        self.do_sub(rhs)
+    }
+}
+
+// impl<A, B, C> Sub<B> for Scalar<A>
+//     where
+//     A: Sub<B, Output = C> + HyperLike,
+//     B: NotHyperLike,
+// {
+//     type Output = Scalar<C>;
+//     fn sub(self, rhs: Scalar<B>) -> Scalar<C> {
+//         Scalar(Sub::sub(self, rhs.0))
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -211,9 +348,17 @@ mod tests {
     #[test]
     fn align_subtraction() {
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        let scalar = Scalar::new(1);
+        let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
         let res = mat - scalar;
         println!("{:?}", res);
+
+        // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let res2 = Scalar::new(10i32) - 20i32;
+        println!("{:?}", res2);
+
+        let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let res3 = mat2 - 10;
+        println!("{:?}", res3);
     }
 
     #[test]

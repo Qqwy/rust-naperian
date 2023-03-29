@@ -5,7 +5,8 @@ pub mod fin;
 pub mod functional;
 
 use common::Array;
-pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply, Pair};
+pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply};
+use functional::pair::Pair;
 use std::marker::PhantomData;
 
 use fin::Fin;

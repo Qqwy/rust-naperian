@@ -1296,7 +1296,6 @@ pub fn alignment() {
     println!("mat2: {:?}", mat2);
 }
 
-// TODO currently requires that both tensors have the same element type.
 pub trait HyperMax<Other> {
     type Output;
 }
@@ -1337,12 +1336,10 @@ where
 
 pub fn align2<Left, Right, LMax, RMax>(left: Left, right: Right) -> (LMax, RMax)
 where
-    Left: HyperMax<Right, Output = LMax>,
-    Right: HyperMax<Left, Output = RMax>,
+    Left: Hyper<Elem = LMax::Elem> + HyperMax<Right, Output = LMax> + HyperAlign<LMax>,
+    Right: Hyper<Elem = RMax::Elem> + HyperMax<Left, Output = RMax> + HyperAlign<RMax>,
     LMax: Hyper,
     RMax: Hyper,
-    Left: Hyper<Elem = LMax::Elem> + HyperAlign<LMax>,
-    Right: Hyper<Elem = RMax::Elem> + HyperAlign<RMax>,
 {
     (left.align(), right.align())
 }

@@ -10,10 +10,15 @@ pub mod hyper;
 pub mod paper;
 
 use align::Alignable;
+use align::Maxed;
 use common::Array;
 
 use functional::{Container, Mappable, Mappable2, Naperian, New};
-use hyper::{Hyper, Prism, Scalar};
+
+use hyper::AutoMappable2;
+#[doc(inline)]
+pub use hyper::Hyper;
+use hyper::{Prism, Scalar};
 use paper::innerp_orig;
 
 #[doc(inline)]
@@ -127,6 +132,7 @@ where
     New::new(yss.transpose())
 }
 
+#[doc(hidden)]
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
     let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
@@ -147,6 +153,7 @@ pub fn foo() -> Tensor3<usize, 2, 2, 3> {
     tens
 }
 
+#[doc(hidden)]
 pub fn alignment() {
     let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
     let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
@@ -158,9 +165,56 @@ pub fn alignment() {
     println!("mat2: {mat2:?}");
 }
 
+use core::ops::Sub;
+impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned> Sub<HypB> for Scalar<A>
+where
+    Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+    HypA: Hyper<Elem = A>,
+    HypB: Hyper<Elem = B>,
+    A: Sub<B, Output = C>,
+    HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
+    HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+    HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
+    HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
+    HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
+{
+    type Output = HypC;
+
+    fn sub(self, rhs: HypB) -> HypC {
+        self.map2(rhs, Sub::sub)
+    }
+}
+
+impl<A, B, C, HypA, HypB, HypC, HypAAligned, HypBAligned, As, N, Ns> Sub<HypB> for Prism<A, As, N, Ns>
+where
+    Self: Container<Containing<A> = HypA> + AutoMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
+    HypA: Hyper<Elem = A>,
+    HypB: Hyper<Elem = B>,
+    A: Sub<B, Output = C>,
+    HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
+    HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+    HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
+    HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
+    HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
+{
+    type Output = HypC;
+
+    fn sub(self, rhs: HypB) -> HypC {
+        self.map2(rhs, Sub::sub)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn align_subtraction() {
+        let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let scalar = Scalar::new(1);
+        let res = mat - scalar;
+        println!("{:?}", res);
+    }
 
     #[test]
     fn binary() {

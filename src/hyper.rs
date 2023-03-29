@@ -17,6 +17,13 @@ use typenum::operator_aliases::{Add1, Prod, Sub1};
 use frunk::hlist::{HCons, HList, HNil};
 use typenum::{NonZero, Unsigned};
 
+/// A Scalar, representing a single element of type T.
+/// A rank-0 tensor.
+///
+/// There is no need to understand/use this type directly;
+/// All useful methods are on the [`Hyper`] trait which Scalar implements.
+///
+/// Implementation of the 'Scalar' variant of the Hyper GADT from the Naperian paper.
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
 pub struct Scalar<T>(pub(crate) T);
@@ -24,6 +31,31 @@ unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
     type Containing<X> = Scalar<X>;
 }
+
+/// A Prism, a rank-N tensor made up of an array containing N rank-(N-1) tensors.
+///
+/// There is no need to understand this type directly;
+/// All useful methods are on the [`Hyper`] trait which Prism implements.
+///
+/// # Internals
+/// Here is what the internals of Prism mean:
+///
+/// - T: The element type
+/// - Ts: A prism of Rank-(N-1) but whose element type is `Array<T, N>`.
+/// - N: The innermost dimension of the tensor (which implements [`ArrayLength`]).
+/// - Ns: A [`HList`] containing all other dimensions of the tensor.
+///
+/// Implementation of the 'Scalar' variant of the Hyper GADT from the Naperian paper.
+/// Note that (at least currently) Prism will only use `Array<T, N>` as inner elements,
+/// rather than 'anything that implements Dimension'.
+/// So strictly speaking, this is an implementation
+/// of the Prism2 variant of the Hyper2 type from the paper.
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+#[repr(transparent)]
+pub struct Prism<T, Ts, N, Ns>(
+    pub(crate) Ts,
+    pub(crate) core::marker::PhantomData<(T, N, Ns)>,
+);
 
 impl<T> New<T> for Scalar<T> {
     fn new(val: T) -> Self {
@@ -37,33 +69,20 @@ where
     Ns: HList,
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Container,
     Ts::AmountOfElems: core::ops::Mul<N>,
-    Prod<Ts::AmountOfElems, N>: ArrayLength,
+Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
     Ts::Rank: core::ops::Add<B1>,
-    Add1<Ts::Rank>: ArrayLength,
+Add1<Ts::Rank>: ArrayLength,
     Ts::Rank: core::ops::Add<B1> + ArrayLength,
-    Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
-    Sub1<Add1<Ts::Rank>>: ArrayLength,
-    Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
+Sub1<Add1<Ts::Rank>>: ArrayLength,
+Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
     fn new(elem_val: T) -> Self {
         Prism::hreplicate(elem_val)
     }
 }
-
-/// Conceptually, Ts is restricted to itself be a Hyper<Dimensions = Ns>
-/// but putting this restriction on the struct makes it impossible to implement certain traits.
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
-#[repr(transparent)]
-pub struct Prism<T, Ts, N, Ns>(
-    pub(crate) Ts,
-    pub(crate) core::marker::PhantomData<(T, N, Ns)>,
-);
-// where
-// N: ArrayLength + NonZero,
-// Ts: Hyper<Dimensions = Ns>,
-// Ns: HList;
 
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
@@ -111,17 +130,55 @@ where
     type Containing<X> = Prism<X, Ts::Containing<GenericArray<X, N>>, N, Ns>;
 }
 
+
+/// The meat of the crate. Hyper is implemented by any Vect, Mat, and other Tensor-like type.
+///
+/// # Implementation details
+///
+/// This is aRust implementation of the the Hyper GADT from the Naperian paper.
+///
+///
+/// Because Rust does not support GADTs, the type was turned into this trait,
+/// and the two variants into the [`Scalar`] and [`Prism`] structs.
+///
+/// Note that (at least currently) Prism will only use `Array<T, N>` as inner elements,
+/// rather than 'anything that implements Dimension'.
+/// So strictly speaking, this is an implementation
+/// of the 'Hyper2' type from the paper.
 pub trait Hyper: Sized {
+    /// A type-level list of type-level numbers representing the dimensions of this tensor.
+    ///
+    /// (c.f. [`typenum::Unsigned`])
     type Dimensions: HList;
+
+    /// The element type of the structure.
     type Elem;
+
+    /// Reference to what nested Hyper is contained in higher-rank Hypers.
     type Inner: Hyper;
+
+    /// Reference to the innermost 'concrete' type contained.
+    ///
+    /// - For [`Scalar`], this is `Elem`.
+    /// - For [`Vect`], this is `Array<Elem, N>`
+    /// - For [`Mat`], this is `Array<Array<Elem, Cols>, Rows>`
+    /// - For [`Tensor3`], this is `Array<Array<Array<Elem, Cols>, Rows>, Slices>`
+    /// etc.
     type Orig;
+
+    /// Type-level number representing the rank (number of dimensions) of the Hyper.
     type Rank: ArrayLength;
 
+    /// The total amount of elements in this Hyper.
+    /// The product of [`Self::Dimensions`].
+    type AmountOfElems: ArrayLength;
+
     // fn into_inner(&self) -> &Self::Inner;
+    /// Returns a reference to the innermost form of this Hyper;
+    ///
+    /// c.f. [`Self::Orig`].
     fn inner(&self) -> &Self::Orig;
 
-    type AmountOfElems: ArrayLength;
     fn amount_of_elems(&self) -> usize {
         Self::AmountOfElems::to_usize()
     }
@@ -154,7 +211,7 @@ pub trait Hyper: Sized {
 
     /// Turns one Hyper into another.
     ///
-    /// Sugar over calling Other::from_flat(self.into_flat()).
+    /// Sugar over calling `Other::from_flat(self.into_flat())`.
     /// c.f. [`Hyper::into_flat`] and [`Hyper::from_flat`].
     ///
     /// This is a cheap operation. Currently it requires a single move.

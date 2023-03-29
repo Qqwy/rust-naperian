@@ -286,3 +286,47 @@ impl<A, U> Mappable3<A, U> for Option<A> {
         }
     }
 }
+
+pub trait Traversable<G, A, B>
+where
+    Self: Mappable<A>,
+    G: Mappable<Self::Containing<B>> + Container<Elem = B>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
+}
+
+impl<G, A, B> Traversable<G, A, B> for Option<A>
+where
+    Self: Mappable<A> + Container<Containing<B> = Option<B>>,
+    G: Mappable<Option<B>> + Container<Elem = B>,
+Option<B>: New<B>,
+    G::Containing<Option<B>>: New<Option<B>>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Option<B>> {
+        match self {
+            None => New::new(None),
+            Some(val) => fun(val).map_by_value(|x| New::new(x)),
+        }
+    }
+}
+
+
+
+pub trait Naperian<T>: Mappable<T> {
+    type Log: Copy;
+    fn lookup(&self, index: Self::Log) -> &T;
+    /// Follows the paper more closely.
+    /// Unfortunately,
+    /// currently requires boxing the returned function.
+    ///
+    /// In the future, this might be improved
+    /// (Once the feature `#![feature(return_position_impl_trait_in_trait)]` is stabilized,
+    /// we could write this as `fn lookup_<'a>(&'a self) -> impl Fn(Self::Log) -> &'a T;`.)
+    ///
+    /// The default implementation is probably suitable for all situations.
+    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
+        Box::new(|index| self.lookup(index))
+    }
+    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
+    fn positions() -> Self::Containing<Self::Log>;
+}

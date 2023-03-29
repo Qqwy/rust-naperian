@@ -1,4 +1,4 @@
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom};
+use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Traversable, Naperian};
 
 
 // TODO implement IntoIterator for Pair
@@ -81,5 +81,34 @@ impl<A, U> Mappable3<A, U> for Pair<A> {
             fun(self.0, second.0, third.0),
             fun(self.1, second.1, third.1),
         )
+    }
+}
+
+
+impl<G, A, B> Traversable<G, A, B> for Pair<A>
+where
+    Self: Mappable<A> + Container<Containing<B> = Pair<B>>,
+    G: Mappable<Pair<B>> + Mappable2<B, Pair<B>> + Container<Elem = B, Containing<B> = G>,
+{
+    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Pair<B>> {
+        fun(&self.0).map2_by_value(fun(&self.1), |one: B, two: B| Pair(one, two))
+    }
+}
+
+
+impl<T> Naperian<T> for Pair<T> {
+    type Log = bool;
+    fn lookup(&self, index: Self::Log) -> &T {
+        match index {
+            false => &self.0,
+            true => &self.1,
+        }
+    }
+    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
+        Pair(fun(false), fun(true))
+    }
+
+    fn positions() -> Self::Containing<Self::Log> {
+        Pair(false, true)
     }
 }

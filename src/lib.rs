@@ -5,7 +5,7 @@ pub mod fin;
 pub mod functional;
 
 use common::Array;
-pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply};
+pub use functional::{Container, Mappable, Mappable2, Mappable3, New, NewFrom, Apply, Naperian};
 use functional::pair::Pair;
 use std::marker::PhantomData;
 
@@ -18,66 +18,6 @@ use typenum::operator_aliases::{Add1, Prod, Sub1};
 use typenum::U;
 use typenum::{NonZero, Unsigned};
 
-
-
-pub trait Naperian<T>: Mappable<T> {
-    type Log: Copy;
-    fn lookup(&self, index: Self::Log) -> &T;
-    /// Follows the paper more closely.
-    /// Unfortunately,
-    /// currently requires boxing the returned function.
-    ///
-    /// In the future, this might be improved
-    /// (Once the feature `#![feature(return_position_impl_trait_in_trait)]` is stabilized,
-    /// we could write this as `fn lookup_<'a>(&'a self) -> impl Fn(Self::Log) -> &'a T;`.)
-    ///
-    /// The default implementation is probably suitable for all situations.
-    fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
-        Box::new(|index| self.lookup(index))
-    }
-    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self;
-    fn positions() -> Self::Containing<Self::Log>;
-}
-
-impl<T> Naperian<T> for Pair<T> {
-    type Log = bool;
-    fn lookup(&self, index: Self::Log) -> &T {
-        match index {
-            false => &self.0,
-            true => &self.1,
-        }
-    }
-    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
-        Pair(fun(false), fun(true))
-    }
-
-    fn positions() -> Self::Containing<Self::Log> {
-        Pair(false, true)
-    }
-}
-
-impl<T, N: ArrayLength> Naperian<T> for Array<T, N>
-where
-    Self: Container<Containing<Fin<N>> = Array<Fin<N>, N>>,
-{
-    type Log = Fin<N>;
-    fn lookup(&self, index: Self::Log) -> &T {
-        &self[index.val()]
-    }
-    fn positions() -> Array<Self::Log, N> {
-        Array::generate(|pos| {
-            // SAFETY: pos is in range [0..N)
-            unsafe { Fin::new_unchecked(pos) }
-        })
-    }
-    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
-        Array::generate(|pos| {
-            // SAFETY: pos is in range [0..N)
-            let fin = unsafe { Fin::new_unchecked(pos) };
-            fun(fin)
-        })
-    }
-}
 
 /// Transpose a F<G<A>> into G<F<A>> provided both F and G implement [`Naperian`].
 /// (and A: [`Clone`] since we need to copy a bunch of A's around.)
@@ -102,39 +42,6 @@ where
     Self::Containing<A>: Naperian<A, Log = Self::Log>,
     G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
 {
-}
-
-pub trait Traversable<G, A, B>
-where
-    Self: Mappable<A>,
-    G: Mappable<Self::Containing<B>> + Container<Elem = B>,
-{
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Self::Containing<B>>;
-}
-
-impl<G, A, B> Traversable<G, A, B> for Option<A>
-where
-    Self: Mappable<A> + Container<Containing<B> = Option<B>>,
-    G: Mappable<Option<B>> + Container<Elem = B>,
-    Option<B>: New<B>,
-    G::Containing<Option<B>>: New<Option<B>>,
-{
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> <G>::Containing<Option<B>> {
-        match self {
-            None => New::new(None),
-            Some(val) => fun(val).map_by_value(|x| New::new(x)),
-        }
-    }
-}
-
-impl<G, A, B> Traversable<G, A, B> for Pair<A>
-where
-    Self: Mappable<A> + Container<Containing<B> = Pair<B>>,
-    G: Mappable<Pair<B>> + Mappable2<B, Pair<B>> + Container<Elem = B, Containing<B> = G>,
-{
-    fn traverse(&self, fun: impl Fn(&A) -> G) -> G::Containing<Pair<B>> {
-        fun(&self.0).map2_by_value(fun(&self.1), |one: B, two: B| Pair(one, two))
-    }
 }
 
 /// Anything that is a Dimension can be used one one rank of a hypercuboid.

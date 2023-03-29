@@ -3,10 +3,11 @@
 //!
 
 use crate::common::Array;
+use crate::fin::Fin;
 use generic_array::ArrayLength;
 use generic_array::sequence::GenericSequence;
 
-use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom};
+use super::{Container, Mappable, Mappable2, Mappable3, Apply, New, NewFrom, Naperian};
 
 unsafe impl<T, N> Container for Array<T, N>
 where
@@ -104,5 +105,28 @@ impl<A, U, N: ArrayLength> Mappable3<A, U> for Array<A, N> {
             .zip(third)
             .map(|((one, two), three)| fun(one, two, three))
             .collect()
+    }
+}
+
+impl<T, N: ArrayLength> Naperian<T> for Array<T, N>
+where
+    Self: Container<Containing<Fin<N>> = Array<Fin<N>, N>>,
+{
+    type Log = Fin<N>;
+    fn lookup(&self, index: Self::Log) -> &T {
+        &self[index.val()]
+    }
+    fn positions() -> Array<Self::Log, N> {
+        Array::generate(|pos| {
+            // SAFETY: pos is in range [0..N)
+            unsafe { Fin::new_unchecked(pos) }
+        })
+    }
+    fn tabulate(fun: impl Fn(Self::Log) -> T) -> Self {
+        Array::generate(|pos| {
+            // SAFETY: pos is in range [0..N)
+            let fin = unsafe { Fin::new_unchecked(pos) };
+            fun(fin)
+        })
     }
 }

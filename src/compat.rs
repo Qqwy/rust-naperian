@@ -18,8 +18,10 @@ impl TensorCompatibilityOption for Tensor {}
 /// At some point a deriving macro for this trait would be a nice feature to add to this library :-).
 ///
 /// ```ignore
-/// impl naperian::compat::TensorCompatible for MyType {
-///     type Kind = naperian::compat::Elem;
+/// use naperian::compat::{TensorCompatible, Elem};
+///
+/// impl TensorCompatible for MyType {
+///     type Kind = Elem;
 /// }
 /// ```
 ///
@@ -42,7 +44,7 @@ impl TensorCompatibilityOption for Tensor {}
 /// You cannot implement this trait for structs outside of your own code
 /// (because of the so-called orphan instances rule.)
 ///
-/// But what you can always do, is to wrap the structs in a call to [`Scalar::new`].
+/// But what you can always do, is to wrap the structs in [`Scalar`].
 /// This will always work.
 pub trait TensorCompatible {
     type Kind: TensorCompatibilityOption;

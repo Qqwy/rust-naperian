@@ -641,7 +641,7 @@ where
     }
 }
 
-
+/// A Scalar can be iterated; it yields its single contained value.
 impl<T> IntoIterator for Scalar<T> {
     type Item = T;
     type IntoIter = core::iter::Once<T>;
@@ -650,6 +650,12 @@ impl<T> IntoIterator for Scalar<T> {
     }
 }
 
+/// Iterating over a Prism will iterate over the outermost dimension:
+///
+/// - for [`Vect`], iteration is over the individual elements.
+/// - for [`Mat`], iteration is over the _rows_.
+/// - for [`Tensor3`], iteration is over the _slices_.
+/// - for [`Tensor4`], iteration is over the _blocks_.
 impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
     where
     Self: Hyper<Elem = T>,

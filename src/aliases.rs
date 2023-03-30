@@ -89,27 +89,40 @@ where
 }
 
 use super::hyper::{Hyper, HyperTranspose};
-impl<T, Rows, Cols, Ts> Mat<T, Rows, Cols>
+impl<T, Rows, Cols> Mat<T, Rows, Cols>
 where
     Rows: ArrayLength + NonZero,
     Cols: ArrayLength + NonZero,
-    Self: Hyper<Inner = Ts>,
+    Self: Hyper,
 Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = HCons<Rows, HNil>, Orig = Array<Vect<T, Cols>, Rows>>,
 {
-    pub fn rows(self) -> Array<Vect<T, Cols>, Rows> {
+    /// Returns a reference to this [`Mat`], viewed as an array of its rows.
+    ///
+    /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
+    pub fn rows(&self) -> &Array<Vect<T, Cols>, Rows> {
+        self.0.orig()
+    }
+
+    /// Consumes this [`Mat`], turning it into an array of its rows.
+    ///
+    /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
+    pub fn into_rows(self) -> Array<Vect<T, Cols>, Rows> {
         self.lower().into_orig()
     }
 }
 
-impl<T: Clone, Rows, Cols, Ts> Mat<T, Rows, Cols>
+impl<T: Clone, Rows, Cols> Mat<T, Rows, Cols>
 where
     Rows: ArrayLength + NonZero,
     Cols: ArrayLength + NonZero,
     Self: Hyper + HyperTranspose<Transposed = Mat<T, Cols, Rows>>,
-    Mat<T, Cols, Rows>: Hyper<Inner = Ts>,
+    Mat<T, Cols, Rows>: Hyper,
 Vect<Array<T, Rows>, Cols>: super::Hyper<Dimensions = HCons<Cols, HNil>, Orig = Array<Vect<T, Rows>, Cols>>,
 {
-    pub fn cols(self) -> Array<Vect<T, Rows>, Cols> {
-        self.transpose().rows()
+    /// Consumes this [`Mat`], turning it into an array of its columns.
+    ///
+    /// This requires moving elements around.
+    pub fn into_columns(self) -> Array<Vect<T, Rows>, Cols> {
+        self.transpose().into_rows()
     }
 }

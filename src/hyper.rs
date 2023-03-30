@@ -30,21 +30,21 @@ use typenum::{NonZero, Unsigned};
 #[repr(transparent)]
 pub struct Scalar<T>(pub(crate) T);
 
-impl<T, N> Scalar<Array<T, N>>
-where
-    N: ArrayLength + NonZero,
-{
-    /// Turns a lower-dimension Hyper
-    /// whose element type is Array<T, N>
-    /// into a one-dimension-higher Hyper
-    /// whose element type is T,
-    /// with the new dimension being N.
-    ///
-    /// Inverse of [`Prism::lower`].
-    pub fn lift(self) -> Prism<T, Self, N, HNil>  {
-        Prism(self, core::marker::PhantomData)
-    }
-}
+// impl<T, N> Scalar<Array<T, N>>
+// where
+//     N: ArrayLength + NonZero,
+// {
+//     /// Turns a lower-dimension Hyper
+//     /// whose element type is Array<T, N>
+//     /// into a one-dimension-higher Hyper
+//     /// whose element type is T,
+//     /// with the new dimension being N.
+//     ///
+//     /// Inverse of [`Prism::lower`].
+//     pub fn lift(self) -> Prism<T, Self, N, HNil>  {
+//         Prism(self, core::marker::PhantomData)
+//     }
+// }
 
 unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
@@ -132,33 +132,33 @@ impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ns: HList,
-    Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
+    Ts: Hyper<Dimensions = Ns>,
 {
     /// Lowers a rank-(K+1) Hyper
     /// into a rank-K Hyper
     /// by turning the element type from T into Array<T, N>.
     ///
-    /// Inverse of [`Scalar::lift`] / [`Prism::lift`].
+    /// Inverse of [`Liftable::lift`].
     pub fn lower(self) -> Ts {
         self.0
     }
 }
 
-impl<T, Ts, N, R, Rs> Prism<Array<T, N>, Ts, R, Rs>
-where
-    N: ArrayLength + NonZero,
-{
-    /// Turns a rank-K Hyper
-    /// whose element type is Array<T, C>
-    /// into a rank-(K+1) Hyper
-    /// whose element type is T.
-    /// The new (innermost) dimension is `C`.
-    ///
-    /// Inverse of [`Prism::lower`].
-    pub fn lift(self) -> Prism<T, Self, N, HCons<R, Rs>>  {
-        Prism(self, core::marker::PhantomData)
-    }
-}
+// impl<T, Ts, N, R, Rs> Prism<Array<T, N>, Ts, R, Rs>
+// where
+//     N: ArrayLength + NonZero,
+// {
+//     /// Turns a rank-K Hyper
+//     /// whose element type is Array<T, C>
+//     /// into a rank-(K+1) Hyper
+//     /// whose element type is T.
+//     /// The new (innermost) dimension is `C`.
+//     ///
+//     /// Inverse of [`Prism::lower`].
+//     pub fn lift(self) -> Prism<T, Self, N, HCons<R, Rs>>  {
+//         Prism(self, core::marker::PhantomData)
+//     }
+// }
 
 unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
 where
@@ -269,6 +269,39 @@ pub trait Hyper: Sized {
         Other: Hyper<Elem = Self::Elem, AmountOfElems = Self::AmountOfElems>,
     {
         Other::from_flat(self.into_flat())
+    }
+}
+
+pub trait Liftable {
+    type Lifted;
+
+    /// Turns a lower-dimension Hyper
+    /// whose element type is Array<T, N>
+    /// into a one-dimension-higher Hyper
+    /// whose element type is T,
+    /// with the new dimension being N.
+    ///
+    /// Inverse of [`Prism::lower`].
+    fn lift(self) -> Self::Lifted;
+}
+
+impl<T, N> Liftable for Scalar<Array<T, N>>
+    where
+    N: ArrayLength + NonZero
+{
+    type Lifted = Prism<T, Self, N, HNil>;
+    fn lift(self) -> Self::Lifted {
+        Prism(self, PhantomData)
+    }
+}
+
+impl<T, Ts, N, R, Rs> Liftable for Prism<Array<T, N>, Ts, R, Rs>
+where
+    N: ArrayLength + NonZero,
+{
+    type Lifted = Prism<T, Self, N, HCons<R, Rs>>;
+    fn lift(self) -> Self::Lifted {
+        Prism(self, PhantomData)
     }
 }
 
@@ -575,14 +608,15 @@ where
     N2s: HList,
     Self: Hyper<Inner = Prism<Array<T, N>, Tts, N2, N2s>>,
     Tts: Hyper<Dimensions = N2s, Elem = Array<Array<T, N>, N2>> + Container<Elem = Array<Array<T, N>, N2>, Containing<Array<Array<T, N2>, N>> = Tts2> + Mappable<Array<Array<T, N2>, N>>,
-    Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems>,
+    Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems> + Liftable,
     Prism<Array<T, N>, Tts, N2, N2s>: Hyper<Dimensions = Ns>,
+    Tts2::Lifted: Liftable<Lifted = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, HCons<N, N2s>>>,
 {
     type Transposed = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, HCons<N, N2s>>;
     fn transpose(self) -> Self::Transposed {
-        let inner = self.0.0;
+        let inner = self.lower().lower();
         let res = inner.map(NaperianTranspose::transpose);
-        Prism(Prism(res, PhantomData), PhantomData)
+        res.lift().lift()
     }
 }
 

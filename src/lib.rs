@@ -22,7 +22,7 @@ use compat::{Elem, Tensor, TensorCompatible};
 pub use functional::{Mappable, New};
 
 #[doc(inline)]
-pub use hyper::{Hyper, HyperMappable2};
+pub use hyper::{Hyper, Liftable, HyperMappable2};
 use hyper::{Prism, Scalar};
 use paper::innerp_orig;
 

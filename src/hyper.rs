@@ -1,4 +1,4 @@
-pub mod ops;
+mod ops;
 
 use crate::align::{align2, Maxed};
 use crate::common::Array;

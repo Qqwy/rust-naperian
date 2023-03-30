@@ -136,6 +136,7 @@ macro_rules! impl_binop {
 }
 
 impl_binop!(Add::add);
+impl_binop!(Sub::sub);
 impl_binop!(Mul::mul);
 impl_binop!(Div::div);
 impl_binop!(Rem::rem);

@@ -368,9 +368,11 @@ pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -
 
 #[doc(hidden)]
 pub fn align_subtraction() {
-    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
-    let res = mat - scalar;
+    let mat: Mat<usize, 2, 3> = [[1,2,3], [4,5,6]].into();
+    // let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    // let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
+    let vec = Vect::<usize, 3>::from([1,2,3]);
+    let res = mat - vec;
     println!("{:?}", res);
 
     // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);

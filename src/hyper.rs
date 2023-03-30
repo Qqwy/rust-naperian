@@ -643,10 +643,10 @@ impl<T> IntoIterator for Scalar<T> {
 
 impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
     where
-    Self: Hyper<Elem = T, Orig = Array<T, <Self as Hyper>::AmountOfElems>>
+    Self: Hyper<Elem = T>
 {
     type Item = T;
-    type IntoIter = <<Self as Hyper>::Orig as IntoIterator>::IntoIter;
+    type IntoIter = <Array<T, <Self as Hyper>::AmountOfElems> as IntoIterator>::IntoIter;
     fn into_iter(self) -> Self::IntoIter {
         self.into_flat().into_iter()
     }
@@ -662,5 +662,13 @@ mod tests {
         let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
         let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
         println!("{:?}", mat3x2);
+    }
+
+    #[test]
+    fn iteration() {
+        let mat: Mat<usize, 2, 3> = [[1,2,3], [4,5,6]].into();
+        for elem in mat {
+            println!("{:?}", elem);
+        }
     }
 }

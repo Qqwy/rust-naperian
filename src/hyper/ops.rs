@@ -26,9 +26,23 @@ macro_rules! impl_binop {
                 }
             }
 
+            // Scalar *op* Elem
+            impl<A, B> binop_trait_impl<Scalar<B>, Elem> for A
+            where
+                A: TensorCompatible<Kind = Elem>,
+                A: $op_trait<B>,
+            {
+                type Output = Scalar<<A as $op_trait<B>>::Output>;
+
+                fn binop(self, rhs: Scalar<B>) -> Self::Output {
+                    // println!("Boom");
+                    Scalar($op_trait::$op(self, rhs.0))
+                }
+            }
 
 
-            // Hyper *op* Scalar
+
+            // Tensor *op* Scalar
             impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> binop_trait_impl<HypB, Tensor> for Scalar<A>
             where
                 A: $op_trait<B, Output = C>,
@@ -59,6 +73,20 @@ macro_rules! impl_binop {
                 type Output = <Self as Container>::Containing<<A as $op_trait<B>>::Output>;
                 fn binop(self, rhs: B) -> Self::Output {
                     self.map_by_value(|x| $op_trait::$op(x, rhs.clone()))
+                }
+            }
+
+            // Prism *op* Elem
+            impl<A, B, Bs, N, Ns> binop_trait_impl<Prism<B, Bs, N, Ns>, Elem> for A
+            where
+                A: $op_trait<B>,
+                A: TensorCompatible<Kind = Elem>,
+                Prism<B, Bs, N, Ns>: Mappable<<A as $op_trait<B>>::Output> + Container<Elem = B>,
+                A: Clone,
+            {
+                type Output = <Prism<B, Bs, N, Ns> as Container>::Containing<<A as $op_trait<B>>::Output>;
+                fn binop(self, rhs: Prism<B, Bs, N, Ns>) -> Self::Output {
+                    rhs.map_by_value(|x| $op_trait::$op(self.clone(), x))
                 }
             }
 

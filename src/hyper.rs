@@ -239,6 +239,7 @@ pub trait Hyper: Sized {
     ///
     /// c.f. [`Self::Orig`].
     fn orig(&self) -> &Self::Orig;
+    fn into_orig(self) -> Self::Orig;
 
     fn amount_of_elems(&self) -> usize {
         Self::AmountOfElems::to_usize()
@@ -338,6 +339,10 @@ impl<T> Hyper for Scalar<T> {
         &self.0
     }
 
+    fn into_orig(self) -> T {
+        self.0
+    }
+
     fn dimensions() -> Array<usize, Self::Rank> {
         Default::default()
     }
@@ -393,6 +398,10 @@ where
 
     fn orig(&self) -> &Self::Orig {
         self.0.orig()
+    }
+
+    fn into_orig(self) -> Self::Orig {
+        self.0.into_orig()
     }
 
     fn dimensions() -> Array<usize, Self::Rank> {
@@ -643,12 +652,16 @@ impl<T> IntoIterator for Scalar<T> {
 
 impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
     where
-    Self: Hyper<Elem = T>
+    Self: Hyper<Elem = T>,
+    Ts: Hyper<Elem = Array<T, N>, Dimensions = Ns>,
+    N: ArrayLength + NonZero,
+    Ns: HList,
+    Ts::Orig: IntoIterator,
 {
-    type Item = T;
-    type IntoIter = <Array<T, <Self as Hyper>::AmountOfElems> as IntoIterator>::IntoIter;
+    type Item = <<Ts as Hyper>::Orig as IntoIterator>::Item;
+    type IntoIter = <<Ts as Hyper>::Orig as IntoIterator>::IntoIter;
     fn into_iter(self) -> Self::IntoIter {
-        self.into_flat().into_iter()
+        self.lower().into_orig().into_iter()
     }
 }
 
@@ -667,8 +680,12 @@ mod tests {
     #[test]
     fn iteration() {
         let mat: Mat<usize, 2, 3> = [[1,2,3], [4,5,6]].into();
-        for elem in mat {
-            println!("{:?}", elem);
+        for row in mat.clone() {
+            println!("{:?}", row);
+        }
+
+        for col in mat.transpose() {
+            println!("{:?}", col);
         }
     }
 }

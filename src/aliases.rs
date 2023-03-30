@@ -87,3 +87,29 @@ where
         Scalar::new(value).lift().lift().lift().lift()
     }
 }
+
+use super::hyper::{Hyper, HyperTranspose};
+impl<T, Rows, Cols, Ts> Mat<T, Rows, Cols>
+where
+    Rows: ArrayLength + NonZero,
+    Cols: ArrayLength + NonZero,
+    Self: Hyper<Inner = Ts>,
+Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = HCons<Rows, HNil>, Orig = Array<Vect<T, Cols>, Rows>>,
+{
+    pub fn rows(self) -> Array<Vect<T, Cols>, Rows> {
+        self.lower().into_orig()
+    }
+}
+
+impl<T: Clone, Rows, Cols, Ts> Mat<T, Rows, Cols>
+where
+    Rows: ArrayLength + NonZero,
+    Cols: ArrayLength + NonZero,
+    Self: Hyper + HyperTranspose<Transposed = Mat<T, Cols, Rows>>,
+    Mat<T, Cols, Rows>: Hyper<Inner = Ts>,
+Vect<Array<T, Rows>, Cols>: super::Hyper<Dimensions = HCons<Cols, HNil>, Orig = Array<Vect<T, Rows>, Cols>>,
+{
+    pub fn cols(self) -> Array<Vect<T, Rows>, Cols> {
+        self.transpose().rows()
+    }
+}

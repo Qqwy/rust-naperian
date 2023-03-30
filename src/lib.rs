@@ -1,5 +1,81 @@
 // #![feature(type_name_of_val)]
 
+//! Naperian is a library to work with tensors, also known as N-dimensional arrays, in an ergonomic *and* type-safe manner.
+//!
+//! It *supports stable rust* (MSRV = 1.65.0) and works in `no_std` environments.
+//!
+//! # Type-Safe
+//!
+//! Naperian is fully type-safe.
+//! Instead of only encoding the element type (which most collection types do),
+//! the full list of dimensions of each tensor is encoded in the tensor's type as well.
+//!
+//! By keeping track of the the full list of dimensions:
+//! - incorrect usage turns into compile-time errors.
+//! - No bounds-checks or other runtime checks are necessary.
+//!
+//! # Ergonomic
+//!
+//! Naperian implements what is known as 'automatic alignment' or 'rank-polymorphic broadcasting',
+//! just like you might know from languages like APL or Julia, or Python's NumPy library.
+//!
+//! It means that you can freely mix single values, lower-rank tensors and higher-rank tensors (as long as their lower dimensions match) in your calculations:
+//!
+//! ```rust
+//! use naperian::aliases::{Mat, Vect};
+//! let mat = Mat::from([[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+//! let vec = Vect::from([1, 2, 3]);
+//! // vec automatically is repeated for each row of mat:
+//! let res = mat + vec - 1;
+//! assert_eq!(res, [[1,3,5], [4,6,8], [7,9,11]].into());
+//! ```
+//!
+//! If the smaller-rank tensor's lower dimensions do not match the lower dimensions of the the higher-rank tensor, this results in a compile-time error:
+//! ```compile_fail
+//! use naperian::aliases::{Mat, Vect};
+//! let mat = Mat::from([[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+//! let vec = Vect::from([1, 2, 3, 4, 5]);
+//! let res = mat * vec; // <- Compile error!
+//! ```
+//!
+//! ## Wow! How does this work?
+//! Using a languages' ['normal'](https://en.wikipedia.org/wiki/Hindley%E2%80%93Milner_type_system) type system to track dimensions and perform automatic alignment
+//! is a technique introduced by the paper [APLicative Programming with Naperian Functors](https://www.cs.ox.ac.uk/people/jeremy.gibbons/publications/aplicative.pdf) written by Jeremy Gibbons.
+//! The paper implements the technique in Haskell. While Rust is not Haskell,
+//! its type system is similar enough to make the same technique work...
+//!
+//!
+//! ### Caveats
+//! ... with a few caveats, that is.
+//!
+//! #### Rust's type system does not support higher-kindred types (HKTs).
+//! These can be emulated by (ab?)using traits with generic associated types (GATs).
+//!
+//! While this works, it does lead to a large and ever-increasing amount of type constraints.
+//! #### Rust does not support 'GADTs' nor 'type families'
+//! GADTs (generic algebraic data types; <sub>not to be confused with GATs, they are very different!</sub>) are essentially an enum whose individual variants are constrained by different type variables, and after construction these type variables are hidden.
+//!
+//! In Rust, this needs to be emulated by building separate structs for each of the variants, all of which implement a shared trait.
+//!
+//! Similarly, type families, a Haskell construct to enable 'type-level functions', are emulated with a dedicated trait containing a GAT.
+//!
+//! Both emulated approaches in Rust introduce more verbose type constraint bounds.
+//!
+//! #### Support for type-level linked lists and type-level numbers
+//! Type-level lists are supported using the [`frunk`] crate's HList type.
+//! (though since we only use HList at the type level we might roll our own at some point).
+//!
+//! Type-level unsigned integers are supported using the [`typenum`] crate.
+//! (_Until the [generic_const_exprs](https://github.com/rust-lang/rust/issues/76560)_ feature is ever finished and stabilized,
+//! const generic numbers cannot be used in the crate's internals._)
+//!
+//! These are both examples of GADTs emulated using (in this case recursive) structs implementing a shared trait.
+//! #### Prepare for large compiler error messages
+//! Because of these implementation constraints, the types the Naperian tensors end up having are rather complex.
+//! This makes some compiler errors messages not very fun to look at.
+//!
+//! Luckily, you won't have to touch any of this machinery when writing your code.
+//! Referring to the [`Vect`], [`Mat`], [`Tensor3`], etc. aliases is usually good enough :-).
 pub mod aliases;
 pub mod align;
 pub mod common;
@@ -12,11 +88,9 @@ pub mod compat;
 
 
 use align::Alignable;
-use align::Maxed;
 use common::Array;
 
-use functional::{Container, Mappable2, Naperian};
-use compat::{Elem, Tensor, TensorCompatible};
+use functional::{Container, Mappable2, Naperian, NaperianTranspose};
 
 #[doc(inline)]
 pub use functional::{Mappable, New};
@@ -29,9 +103,9 @@ use paper::innerp_orig;
 #[doc(inline)]
 pub use const_aliases::*;
 
-use std::iter::Sum;
+use core::iter::Sum;
 
-use std::ops::Mul;
+use core::ops::Mul;
 
 use generic_array::{arr, GenericArray};
 use typenum::consts::*;
@@ -39,31 +113,6 @@ use typenum::consts::*;
 use typenum::U;
 
 use frunk::hlist::{HCons, HNil};
-
-/// Transpose a `F<G<A>>` into `G<F<A>>` provided both `F` and `G` implement [`Naperian`].
-/// (and A: [`Clone`] since we need to copy a bunch of `A`'s around.)
-///
-/// There is no need to implement this trait manually since there is a blanket implementation
-/// for all types implementing Naperian.
-pub trait NaperianTranspose<G, A: Clone>
-where
-    Self: Naperian<G>,
-    G: Naperian<A>,
-    Self::Containing<A>: Naperian<A, Log = Self::Log>,
-    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
-{
-    fn transpose(&self) -> G::Containing<Self::Containing<A>> {
-        Naperian::tabulate(|x| Naperian::tabulate(|y| self.lookup(y).lookup(x).clone()))
-    }
-}
-
-impl<G, A: Clone, Nap: ?Sized + Naperian<G>> NaperianTranspose<G, A> for Nap
-where
-    G: Naperian<A>,
-    Self::Containing<A>: Naperian<A, Log = Self::Log>,
-    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
-{
-}
 
 /// Calculate the inner product (also known as the dot product) of two collections of the same shape.
 ///
@@ -107,7 +156,7 @@ where
     Fa: Container<Elem = A, Containing<A> = Fa>,
     Fa: Naperian<A>,
     Fa::Containing<Gha::Containing<A>>: Naperian<Gha::Containing<A>, Log = Fa::Log>,
-    A: Clone + std::iter::Sum + std::ops::Mul<Output = A>,
+    A: Clone + core::iter::Sum + core::ops::Mul<Output = A>,
 {
     let lifted_xss: Fhga = lifted_xss(xss);
     let lifted_yss: Fhga = lifted_yss(yss);

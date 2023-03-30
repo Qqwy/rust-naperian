@@ -11,7 +11,7 @@ pub struct Fin<N: Unsigned> {
 }
 
 impl<N: Unsigned> core::fmt::Debug for Fin<N> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name = format!("Fin<U{}>", N::USIZE);
         f.debug_tuple(&name).field(&self.val).finish()
     }

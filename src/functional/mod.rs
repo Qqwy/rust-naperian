@@ -338,3 +338,28 @@ pub trait Naperian<T>: Mappable<T> {
 pub trait Dimension: Container {
     fn size(&self) -> usize;
 }
+
+/// Transpose a `F<G<A>>` into `G<F<A>>` provided both `F` and `G` implement [`Naperian`].
+/// (and A: [`Clone`] since we need to copy a bunch of `A`'s around.)
+///
+/// There is no need to implement this trait manually since there is a blanket implementation
+/// for all types implementing Naperian.
+pub trait NaperianTranspose<G, A: Clone>
+where
+    Self: Naperian<G>,
+    G: Naperian<A>,
+    Self::Containing<A>: Naperian<A, Log = Self::Log>,
+    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
+{
+    fn transpose(&self) -> G::Containing<Self::Containing<A>> {
+        Naperian::tabulate(|x| Naperian::tabulate(|y| self.lookup(y).lookup(x).clone()))
+    }
+}
+
+impl<G, A: Clone, Nap: ?Sized + Naperian<G>> NaperianTranspose<G, A> for Nap
+where
+    G: Naperian<A>,
+    Self::Containing<A>: Naperian<A, Log = Self::Log>,
+    G::Containing<Self::Containing<A>>: Naperian<Self::Containing<A>, Log = G::Log>,
+{
+}

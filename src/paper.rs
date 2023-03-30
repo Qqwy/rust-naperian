@@ -16,7 +16,7 @@ use core::ops::Mul;
 pub fn innerp_orig<A, R>(a: &A, b: &A) -> R
 where
     A: Mappable2<R, R> + Container<Containing<R> = A> + IntoIterator,
-    R: Sum<<A as std::iter::IntoIterator>::Item>,
+    R: Sum<<A as core::iter::IntoIterator>::Item>,
     R: Mul<R, Output = R> + Clone,
 {
     let products = a.map2(b, |x: &R, y: &R| x.clone() * y.clone());

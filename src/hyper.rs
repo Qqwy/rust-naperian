@@ -7,7 +7,7 @@ pub use crate::functional::{
     Apply, Container, Mappable, Mappable2, Mappable3, Naperian, New, NewFrom,
 };
 
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 
 pub use crate::fin::Fin;
 
@@ -34,7 +34,7 @@ impl<T> core::fmt::Debug for Scalar<T>
     where
     T: core::fmt::Debug,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let struct_name = format!("Scalar<{}>", core::any::type_name::<T>());
         f.debug_tuple(&struct_name)
             .field(&self.0)
@@ -132,7 +132,7 @@ where
     Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let struct_name = format!("Prism<{}>", core::any::type_name::<T>());
         f.debug_struct(&struct_name)
             .field("dimensions", &Self::dimensions())

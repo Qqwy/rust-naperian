@@ -632,6 +632,26 @@ where
     }
 }
 
+
+impl<T> IntoIterator for Scalar<T> {
+    type Item = T;
+    type IntoIter = core::iter::Once<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        core::iter::once(self.0)
+    }
+}
+
+impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
+    where
+    Self: Hyper<Elem = T, Orig = Array<T, <Self as Hyper>::AmountOfElems>>
+{
+    type Item = T;
+    type IntoIter = <<Self as Hyper>::Orig as IntoIterator>::IntoIter;
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_flat().into_iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

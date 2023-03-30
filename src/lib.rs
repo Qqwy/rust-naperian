@@ -1,6 +1,6 @@
-//! Naperian is a library to work with tensors, also known as N-dimensional arrays, in an ergonomic *and* type-safe manner.
+//! Naperian is a library to work with tensors, also known as N-dimensional arrays, in an ergonomic **and** type-safe manner.
 //!
-//! It *supports stable rust* (MSRV = 1.65.0) and works in `no_std` environments.
+//! It **supports stable rust** (MSRV = 1.65.0) and works in `no_std` environments.
 //!
 //! # Type-Safe
 //!

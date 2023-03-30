@@ -26,9 +26,21 @@ use typenum::{NonZero, Unsigned};
 /// All useful methods are on the [`Hyper`] trait which Scalar implements.
 ///
 /// Implementation of the 'Scalar' variant of the Hyper GADT from the Naperian paper.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
 pub struct Scalar<T>(pub(crate) T);
+
+impl<T> core::fmt::Debug for Scalar<T>
+    where
+    T: core::fmt::Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let struct_name = format!("Scalar<{}>", core::any::type_name::<T>());
+        f.debug_tuple(&struct_name)
+            .field(&self.0)
+            .finish()
+    }
+}
 
 // impl<T, N> Scalar<Array<T, N>>
 // where
@@ -121,7 +133,8 @@ where
     T: Clone,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Prism")
+        let struct_name = format!("Prism<{}>", core::any::type_name::<T>());
+        f.debug_struct(&struct_name)
             .field("dimensions", &Self::dimensions())
             .field("contents", &self.orig())
             .finish()

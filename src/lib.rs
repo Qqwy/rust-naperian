@@ -192,6 +192,14 @@ mod tests {
     }
 
     #[test]
+    pub fn from_testing() {
+        let mat: aliases::Mat<_, _, _> = [[1,2,3], [4,5,6]].into();
+        let vec: aliases::Vect<_, _> = [1,2,3].into();
+        let res = mat + vec;
+        assert_eq!(res, [[2, 4, 6], [5, 7, 9]].into());
+    }
+
+    #[test]
     fn binary() {
         use hyper::HyperMappable2;
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
@@ -383,6 +391,7 @@ pub fn align_subtraction() {
     let res3 = mat2 - 10;
     println!("{:?}", res3);
 }
+
 
 #[doc(hidden)]
 pub fn subtract42(mat: Mat<i8, 64, 64>) -> Mat<i8, 64, 64> {

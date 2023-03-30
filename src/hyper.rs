@@ -694,4 +694,50 @@ mod tests {
             println!("{:?}", col);
         }
     }
+
+    #[test]
+    fn deref_example() {
+        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+        let zero: Fin<_> = Fin::new(0).unwrap();
+        let res = mat2x3[zero];
+        println!("{:?}", res);
+    }
+}
+
+use core::ops::{Deref, Index};
+impl<T> Deref for Scalar<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// impl<T, Ts, N, Ns> Deref for Prism<T, Ts, N, Ns>
+// where
+//     Self: Hyper,
+//     Ts: Hyper<Dimensions = Ns>,
+//     N: ArrayLength + NonZero,
+//     Ns: HList,
+// {
+//     type Target = <Ts as Hyper>::Orig;
+//     fn deref(&self) -> &Self::Target {
+//         self.0.orig()
+//     }
+// }
+
+impl<T, Ts, N, Ns> Index<Fin<N>> for Prism<T, Ts, N, Ns>
+    where
+    N: Unsigned,
+    Self: Hyper,
+    // where
+    Ts: Hyper,
+    <Ts as Hyper>::Orig: Deref,
+    <<Ts as Hyper>::Orig as Deref>::Target: Index<usize>,
+    // Ts::Orig: Index<usize>,
+    // N: ArrayLength + NonZero
+{
+    type Output = <<<Ts as Hyper>::Orig as Deref>::Target as Index<usize>>::Output;
+    fn index(&self, index: Fin<N>) -> &Self::Output {
+        &self.0.orig()[index.val()]
+    }
 }

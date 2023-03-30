@@ -13,5 +13,4 @@ frunk = "0.4.1"
 generic-array = { git = "https://github.com/fizyk20/generic-array.git", branch = "1.0" }
 sealed = "0.4.0"
 static_assertions = "1.1.0"
-typ = "0.1.1"
 typenum = { version = "1.16.0", features = ["const-generics"] }

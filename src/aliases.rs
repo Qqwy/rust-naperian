@@ -1,4 +1,9 @@
+use generic_array::ArrayLength;
+use typenum::NonZero;
+
 use super::{Array, HCons, HNil, Prism};
+use super::functional::New;
+use super::hyper::Liftable;
 
 /// A single scalar value.
 ///
@@ -40,3 +45,45 @@ pub type Tensor4<T, Blocks, Slices, Rows, Cols> = Prism<
     Cols,
     HCons<Rows, HCons<Slices, HCons<Blocks, HNil>>>,
 >;
+
+impl<T, N> From<Array<T, N>> for Vect<T, N>
+where
+    N: ArrayLength + NonZero
+{
+    fn from(value: Array<T, N>) -> Self {
+        Scalar::new(value).lift()
+    }
+}
+
+impl<T, Rows, Cols> From<Array<Array<T, Cols>, Rows>> for Mat<T, Rows, Cols>
+where
+    Rows: ArrayLength + NonZero,
+    Cols: ArrayLength + NonZero,
+{
+    fn from(value: Array<Array<T, Cols>, Rows>) -> Self {
+        Scalar::new(value).lift().lift()
+    }
+}
+
+impl<T, Slices, Rows, Cols> From<Array<Array<Array<T, Cols>, Rows>, Slices>> for Tensor3<T, Slices, Rows, Cols>
+where
+    Slices: ArrayLength + NonZero,
+    Rows: ArrayLength + NonZero,
+    Cols: ArrayLength + NonZero,
+{
+    fn from(value: Array<Array<Array<T, Cols>, Rows>, Slices>) -> Self {
+        Scalar::new(value).lift().lift().lift()
+    }
+}
+
+impl<T, Blocks, Slices, Rows, Cols> From<Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>> for Tensor4<T, Blocks, Slices, Rows, Cols>
+where
+    Blocks: ArrayLength + NonZero,
+    Slices: ArrayLength + NonZero,
+    Rows: ArrayLength + NonZero,
+    Cols: ArrayLength + NonZero,
+{
+    fn from(value: Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>) -> Self {
+        Scalar::new(value).lift().lift().lift().lift()
+    }
+}

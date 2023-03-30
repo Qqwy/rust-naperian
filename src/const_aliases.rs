@@ -48,3 +48,56 @@ pub type Tensor4<
     U<COLS>,
     HCons<U<ROWS>, HCons<U<SLICES>, HCons<U<BLOCKS>, HNil>>>,
 >;
+
+
+use crate::functional::New;
+use crate::hyper::Liftable;
+use typenum::{NonZero, ToUInt, Const};
+use generic_array::ArrayLength;
+impl<T, const N: usize> From<[T; N]> for Vect<T, N>
+where
+    Const<N>: ToUInt,
+    U::<N>: ArrayLength + NonZero
+{
+    fn from(value: [T; N]) -> Self {
+        // SAFETY: Memory layout of [T; N] and GenericArray<T, U<N>>
+        // is guaranteed to be is the same.
+        let ga: Array<T, U<N>> = unsafe { core::mem::transmute_copy(&value) };
+        Scalar::new(ga).lift()
+    }
+}
+
+// impl<T, const ROWS: usize, const COLS: usize> From<[[T; COLS]; ROWS]> for Mat<T, ROWS, COLS>
+// where
+//     Const<ROWS>: ToUInt,
+//     Const<COLS>: ToUInt,
+//     U::<ROWS>: ArrayLength + NonZero,
+//     U::<COLS>: ArrayLength + NonZero,
+// {
+//     fn from(value: Array<Array<T, U::<COLS>>, U::<ROWS>>) -> Self {
+//         Scalar::new(value).lift().lift()
+//     }
+// }
+
+// impl<T, Slices, Rows, Cols> From<Array<Array<Array<T, Cols>, Rows>, Slices>> for Tensor3<T, Slices, Rows, Cols>
+// where
+//     Slices: ArrayLength + NonZero,
+//     Rows: ArrayLength + NonZero,
+//     Cols: ArrayLength + NonZero,
+// {
+//     fn from(value: Array<Array<Array<T, Cols>, Rows>, Slices>) -> Self {
+//         Scalar::new(value).lift().lift().lift()
+//     }
+// }
+
+// impl<T, Blocks, Slices, Rows, Cols> From<Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>> for Tensor4<T, Blocks, Slices, Rows, Cols>
+// where
+//     Blocks: ArrayLength + NonZero,
+//     Slices: ArrayLength + NonZero,
+//     Rows: ArrayLength + NonZero,
+//     Cols: ArrayLength + NonZero,
+// {
+//     fn from(value: Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>) -> Self {
+//         Scalar::new(value).lift().lift().lift().lift()
+//     }
+// }

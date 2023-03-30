@@ -14,3 +14,9 @@ generic-array = { git = "https://github.com/fizyk20/generic-array.git", branch =
 sealed = "0.4.0"
 static_assertions = "1.1.0"
 typenum = { version = "1.16.0", features = ["const-generics"] }
+
+
+[features]
+default = [ "std" ]
+std = [ "alloc" ]
+alloc = []

@@ -7,14 +7,14 @@ use crate::align;
 
 macro_rules! impl_binop {
     ($op_trait:ident::$op:ident) => {
-        concat_idents!(binop_impl = $op_trait, Impl {
-            trait binop_impl<T: TensorCompatible, HL = <T as TensorCompatible>::Kind> {
+        concat_idents!(binop_trait_impl = $op_trait, Impl {
+            trait binop_trait_impl<T: TensorCompatible, HL = <T as TensorCompatible>::Kind> {
                 type Output;
                 fn binop(self, rhs: T) -> Self::Output;
             }
 
             // Elem *op* Scalar
-            impl<A, B> binop_impl<B, Elem> for Scalar<A>
+            impl<A, B> binop_trait_impl<B, Elem> for Scalar<A>
             where
                 B: TensorCompatible<Kind = Elem>,
                 A: $op_trait<B>,
@@ -26,8 +26,10 @@ macro_rules! impl_binop {
                 }
             }
 
+
+
             // Hyper *op* Scalar
-            impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> binop_impl<HypB, Tensor> for Scalar<A>
+            impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> binop_trait_impl<HypB, Tensor> for Scalar<A>
             where
                 A: $op_trait<B, Output = C>,
                 HypB: TensorCompatible<Kind = Tensor>,
@@ -47,7 +49,7 @@ macro_rules! impl_binop {
             }
 
             // Elem *op* Prism
-            impl<A, B, As, N, Ns> binop_impl<B, Elem> for Prism<A, As, N, Ns>
+            impl<A, B, As, N, Ns> binop_trait_impl<B, Elem> for Prism<A, As, N, Ns>
             where
                 A: $op_trait<B>,
                 B: TensorCompatible<Kind = Elem>,
@@ -61,7 +63,7 @@ macro_rules! impl_binop {
             }
 
             // Tensor *op* Prism
-            impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> binop_impl<HypB, Tensor> for Prism<A, As, N, Ns>
+            impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> binop_trait_impl<HypB, Tensor> for Prism<A, As, N, Ns>
             where
                 A: $op_trait<B, Output = C>,
                 HypB: TensorCompatible<Kind = Tensor>,
@@ -82,23 +84,23 @@ macro_rules! impl_binop {
 
             impl<A, B, Kind, C> $op_trait<B> for Scalar<A>
             where
-                Self: binop_impl<B, Kind, Output = C>,
+                Self: binop_trait_impl<B, Kind, Output = C>,
                 B: TensorCompatible<Kind = Kind>,
             {
                 type Output = C;
                 fn $op(self, rhs: B) -> C {
-                    binop_impl::binop(self, rhs)
+                    binop_trait_impl::binop(self, rhs)
                 }
             }
 
             impl<A, B, C, Kind, As, N, Ns> $op_trait<B> for Prism<A, As, N, Ns>
             where
-                Self: binop_impl<B, Kind, Output = C>,
+                Self: binop_trait_impl<B, Kind, Output = C>,
                 B: TensorCompatible<Kind = Kind>,
             {
                 type Output = C;
                 fn $op(self, rhs: B) -> C {
-                    binop_impl::binop(self, rhs)
+                    binop_trait_impl::binop(self, rhs)
                 }
             }
         });

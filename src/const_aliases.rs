@@ -50,7 +50,7 @@ pub type Tensor4<
 >;
 
 
-use crate::functional::New;
+use crate::functional::{New, Mappable};
 use crate::hyper::Liftable;
 use typenum::{NonZero, ToUInt, Const};
 use generic_array::ArrayLength;
@@ -60,44 +60,72 @@ where
     U::<N>: ArrayLength + NonZero
 {
     fn from(value: [T; N]) -> Self {
-        // SAFETY: Memory layout of [T; N] and GenericArray<T, U<N>>
-        // is guaranteed to be is the same.
-        let ga: Array<T, U<N>> = unsafe { core::mem::transmute_copy(&value) };
-        Scalar::new(ga).lift()
+        Scalar::new(generic_array_from(value)).lift()
     }
 }
 
-// impl<T, const ROWS: usize, const COLS: usize> From<[[T; COLS]; ROWS]> for Mat<T, ROWS, COLS>
-// where
-//     Const<ROWS>: ToUInt,
-//     Const<COLS>: ToUInt,
-//     U::<ROWS>: ArrayLength + NonZero,
-//     U::<COLS>: ArrayLength + NonZero,
-// {
-//     fn from(value: Array<Array<T, U::<COLS>>, U::<ROWS>>) -> Self {
-//         Scalar::new(value).lift().lift()
-//     }
-// }
+impl<T, const ROWS: usize, const COLS: usize> From<[[T; COLS]; ROWS]> for Mat<T, ROWS, COLS>
+where
+    Const<ROWS>: ToUInt,
+    Const<COLS>: ToUInt,
+    U::<ROWS>: ArrayLength + NonZero,
+    U::<COLS>: ArrayLength + NonZero,
+{
+    fn from(value: [[T; COLS]; ROWS]) -> Self {
+        let arr = generic_array_from(value).map_by_value(generic_array_from);
+        Scalar::new(arr).lift().lift()
+    }
+}
 
-// impl<T, Slices, Rows, Cols> From<Array<Array<Array<T, Cols>, Rows>, Slices>> for Tensor3<T, Slices, Rows, Cols>
-// where
-//     Slices: ArrayLength + NonZero,
-//     Rows: ArrayLength + NonZero,
-//     Cols: ArrayLength + NonZero,
-// {
-//     fn from(value: Array<Array<Array<T, Cols>, Rows>, Slices>) -> Self {
-//         Scalar::new(value).lift().lift().lift()
-//     }
-// }
+impl<T, const SLICES: usize, const ROWS: usize, const COLS: usize> From<[[[T; COLS]; ROWS]; SLICES]> for Tensor3<T, SLICES, ROWS, COLS>
+where
+    Const<SLICES>: ToUInt,
+    Const<COLS>: ToUInt,
+    Const<ROWS>: ToUInt,
+    U::<SLICES>: ArrayLength + NonZero,
+    U::<ROWS>: ArrayLength + NonZero,
+    U::<COLS>: ArrayLength + NonZero,
+{
+    fn from(value: [[[T; COLS]; ROWS]; SLICES]) -> Self {
+        let arr = generic_array_from(value)
+            .map_by_value(generic_array_from)
+            .map_by_value(|rows| rows.map_by_value(generic_array_from));
+        Scalar::new(arr).lift().lift().lift()
+    }
+}
 
-// impl<T, Blocks, Slices, Rows, Cols> From<Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>> for Tensor4<T, Blocks, Slices, Rows, Cols>
-// where
-//     Blocks: ArrayLength + NonZero,
-//     Slices: ArrayLength + NonZero,
-//     Rows: ArrayLength + NonZero,
-//     Cols: ArrayLength + NonZero,
-// {
-//     fn from(value: Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>) -> Self {
-//         Scalar::new(value).lift().lift().lift().lift()
-//     }
-// }
+impl<T, const BLOCKS: usize, const SLICES: usize, const ROWS: usize, const COLS: usize> From<[[[[T; COLS]; ROWS]; SLICES]; BLOCKS]> for Tensor4<T, BLOCKS, SLICES, ROWS, COLS>
+where
+    Const<BLOCKS>: ToUInt,
+    Const<SLICES>: ToUInt,
+    Const<COLS>: ToUInt,
+    Const<ROWS>: ToUInt,
+    U::<BLOCKS>: ArrayLength + NonZero,
+    U::<SLICES>: ArrayLength + NonZero,
+    U::<ROWS>: ArrayLength + NonZero,
+    U::<COLS>: ArrayLength + NonZero,
+{
+    fn from(value: [[[[T; COLS]; ROWS]; SLICES]; BLOCKS]) -> Self {
+        let arr = generic_array_from(value)
+            .map_by_value(generic_array_from)
+            .map_by_value(|slices| {
+                slices
+                    .map_by_value(generic_array_from)
+                    .map_by_value(|rows| rows.map_by_value(generic_array_from))
+            });
+
+        Scalar::new(arr).lift().lift().lift().lift()
+    }
+}
+
+// Needed until https://github.com/fizyk20/generic-array/issues/140 is fixed.
+// GenericArray only has some hard-coded From/Into impls at this time.
+fn generic_array_from<T, const N: usize>(arr: [T; N]) -> Array<T, U::<N>>
+    where
+    Const<N>: ToUInt,
+    U::<N>: ArrayLength,
+{
+    // SAFETY: Memory layout of [T; N] and GenericArray<T, U<N>>
+    // is guaranteed to be is the same.
+    unsafe { core::mem::transmute_copy(&arr) }
+}

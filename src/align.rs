@@ -146,26 +146,26 @@ where
 
 // TODO temporary code so we can use cargo asm
 pub fn hypermax() {
-    use crate::const_aliases::{Mat, Tensor3, Vect};
-    use generic_array::arr;
-    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-    type Aligned = <Vect<usize, 1> as Max<Mat<usize, 2, 1>>>::Output;
-    let res = core::any::type_name::<Aligned>();
-    println!("Max: {res:?}");
-    let (mat_aligned, tens_aligned) = align2(mat, tens);
-    // let mat_aligned: Max = mat.align();
-    // let tens_aligned: Max = tens.align();
-    println!("mat_aligned: {:?}", &mat_aligned);
-    println!("tens_aligned: {:?}", &tens_aligned);
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::println;
 
     #[test]
     fn hypermax() {
-        super::hypermax();
+        use crate::const_aliases::{Mat, Tensor3, Vect};
+        use generic_array::arr;
+        let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        type Aligned = <Vect<usize, 1> as Max<Mat<usize, 2, 1>>>::Output;
+        let res = core::any::type_name::<Aligned>();
+        println!("Max: {res:?}");
+        let (mat_aligned, tens_aligned) = align2(mat, tens);
+        // let mat_aligned: Max = mat.align();
+        // let tens_aligned: Max = tens.align();
+        println!("mat_aligned: {:?}", &mat_aligned);
+        println!("tens_aligned: {:?}", &tens_aligned);
     }
 }

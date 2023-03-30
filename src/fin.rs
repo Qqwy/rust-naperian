@@ -12,11 +12,14 @@ pub struct Fin<N: Unsigned> {
 
 impl<N: Unsigned> core::fmt::Debug for Fin<N> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let name = format!("Fin<U{}>", N::USIZE);
-        f.debug_tuple(&name).field(&self.val).finish()
+        f.debug_struct("Fin")
+            .field("val", &self.val)
+            .field("bound", &N::USIZE)
+            .finish()
     }
 }
 
+use const_format::formatcp;
 impl<N: Unsigned> Fin<N> {
     /// Creates a new Fin from a usize. Fallible, checked at runtime.
     ///

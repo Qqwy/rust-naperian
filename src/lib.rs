@@ -1,5 +1,3 @@
-// #![feature(type_name_of_val)]
-
 //! Naperian is a library to work with tensors, also known as N-dimensional arrays, in an ergonomic *and* type-safe manner.
 //!
 //! It *supports stable rust* (MSRV = 1.65.0) and works in `no_std` environments.
@@ -76,6 +74,13 @@
 //!
 //! Luckily, you won't have to touch any of this machinery when writing your code.
 //! Referring to the [`Vect`], [`Mat`], [`Tensor3`], etc. aliases is usually good enough :-).
+#![no_std]
+
+#[cfg(test)]
+extern crate std;
+#[cfg(test)]
+use std::println;
+
 pub mod aliases;
 pub mod align;
 pub mod common;
@@ -186,59 +191,9 @@ where
     New::new(yss.transpose())
 }
 
-#[doc(hidden)]
-pub fn foo() -> Tensor3<usize, 2, 2, 3> {
-    let _v: Vect<usize, 3> = Scalar::new(arr![1, 2, 3]).lift();
-    let mat: Mat<usize, 2, 3> = Scalar::new(arr![
-        arr![1, 2, 3],
-        arr![4, 5, 6]
-    ]).lift().lift();
-    // let tens: Tensor3<usize, U2, U3, U1> = Prism::lift(Prism::lift(Prism::lift(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
-    let tens: Tensor3<usize, 2, 2, 3> =
-        Scalar::new(arr![
-            arr![arr![1, 2, 3], arr![4, 5, 6]],
-            arr![arr![7, 8, 9], arr![10, 11, 12]]
-        ]).lift().lift().lift();
-    println!("{:?}", &mat);
-    println!("{:?}", &tens);
-    let flat: &Array<usize, U12> = unsafe { core::mem::transmute(&tens) };
-    println!("flat: {:?}", &flat);
-    // println!("{:?}", core::any::type_name_of_val(&tens));
-    tens
-}
-
-#[doc(hidden)]
-pub fn alignment() {
-    let _v: Vect<usize, 3> = Scalar::new(arr![1, 2, 3]).lift();
-    let mat: Mat<usize, 2, 3> = Scalar::new(arr![
-        arr![1, 2, 3],
-        arr![4, 5, 6]
-    ]).lift().lift();
-    let mat2: Tensor3<usize, 3, 2, 3> = mat.align();
-    // println!("mat: {:?}", mat);
-    println!("mat2: {mat2:?}");
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn align_subtraction() {
-        super::align_subtraction();
-        // let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        // let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
-        // let res = mat - scalar;
-        // println!("{:?}", res);
-
-        // // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        // let res2 = Scalar::new(10i32) - 20i32;
-        // println!("{:?}", res2);
-
-        // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        // let res3 = mat2 - 10;
-        // println!("{:?}", res3);
-    }
 
     #[test]
     pub fn from_testing() {
@@ -259,16 +214,6 @@ mod tests {
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let matsum = (&mat).map2(&mat, |x, y| x + y);
         println!("matsum: {:?}", matsum);
-    }
-
-    #[test]
-    fn alignment() {
-        super::alignment();
-    }
-
-    #[test]
-    fn foofoo() {
-        let val = super::foo();
     }
 
     #[test]
@@ -421,28 +366,4 @@ pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -
     // let v123 = arr![1,2,3];
     // let v456 = arr![4,5,6];
     innerp_orig(&v123, &v456)
-}
-
-#[doc(hidden)]
-pub fn align_subtraction() {
-    let mat: Mat<usize, 2, 3> = [[1,2,3], [4,5,6]].into();
-    // let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    // let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
-    let vec = Vect::<usize, 3>::from([1,2,3]);
-    let res = mat - vec;
-    println!("{:?}", res);
-
-    // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res2 = Scalar::new(10i32) - 20i32;
-    println!("{:?}", res2);
-
-    let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res3 = mat2 - 10;
-    println!("{:?}", res3);
-}
-
-
-#[doc(hidden)]
-pub fn subtract42(mat: Mat<i8, 64, 64>) -> Mat<i8, 64, 64> {
-    mat - 42
 }

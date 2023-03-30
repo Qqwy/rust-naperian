@@ -1,6 +1,11 @@
 mod array;
 pub mod pair;
 
+#[cfg(alloc)]
+extern crate alloc;
+#[cfg(alloc)]
+use alloc::{Vec, Box};
+
 /// Trait which makes higher-kindred types tick
 ///
 /// Rust has no concept of 'higher kinds' but only of concrete types.
@@ -35,6 +40,7 @@ pub unsafe trait Container {
     type Containing<X>;
 }
 
+#[cfg(alloc)]
 unsafe impl<T> Container for Vec<T> {
     type Elem = T;
     type Containing<X> = Vec<X>;
@@ -45,6 +51,7 @@ unsafe impl<T> Container for Option<T> {
     type Containing<X> = Option<X>;
 }
 
+#[cfg(alloc)]
 unsafe impl<T> Container for Box<T> {
     type Elem = T;
     type Containing<X> = Box<X>;
@@ -322,6 +329,7 @@ pub trait Naperian<T>: Mappable<T> {
     /// we could write this as `fn lookup_<'a>(&'a self) -> impl Fn(Self::Log) -> &'a T;`.)
     ///
     /// The default implementation is probably suitable for all situations.
+    #[cfg(alloc)]
     fn lookup_<'a>(&'a self) -> Box<dyn Fn(Self::Log) -> &'a T + 'a> {
         Box::new(|index| self.lookup(index))
     }

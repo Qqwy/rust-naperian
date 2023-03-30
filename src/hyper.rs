@@ -35,8 +35,7 @@ impl<T> core::fmt::Debug for Scalar<T>
     T: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let struct_name = format!("Scalar<{}>", core::any::type_name::<T>());
-        f.debug_tuple(&struct_name)
+        f.debug_tuple(core::any::type_name::<T>())
             .field(&self.0)
             .finish()
     }
@@ -133,8 +132,8 @@ where
     T: Clone,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        let struct_name = format!("Prism<{}>", core::any::type_name::<T>());
-        f.debug_struct(&struct_name)
+        f.debug_struct("Prism")
+            .field("type", &core::any::type_name::<T>())
             .field("dimensions", &Self::dimensions())
             .field("contents", &self.orig())
             .finish()
@@ -633,16 +632,15 @@ where
     }
 }
 
-pub fn example() {
-    let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
-    let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
-    println!("{:?}", mat3x2);
-}
-
 #[cfg(test)]
 mod tests {
+    use super::*;
+    use std::println;
+
     #[test]
     fn transpose_example() {
-        super::example();
+        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+        let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
+        println!("{:?}", mat3x2);
     }
 }

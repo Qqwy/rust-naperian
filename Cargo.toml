@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+concat-idents = "1.1.4"
 const_format = "0.2.30"
 frunk = "0.4.1"
 # generic-array = "0.14.6"

@@ -15,12 +15,14 @@ use align::Alignable;
 use align::Maxed;
 use common::Array;
 
-use functional::{Container, Mappable, Mappable2, Naperian, New};
+use functional::{Container, Mappable2, Naperian};
 use compat::{Elem, Tensor, TensorCompatible};
 
-use hyper::HyperMappable2;
 #[doc(inline)]
-pub use hyper::Hyper;
+pub use functional::{Mappable, New};
+
+#[doc(inline)]
+pub use hyper::{Hyper, HyperMappable2};
 use hyper::{Prism, Scalar};
 use paper::innerp_orig;
 
@@ -189,12 +191,11 @@ impl<A, B> SubImpl<B, Elem> for Scalar<A>
 
 impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C> SubImpl<HypB, Tensor> for Scalar<A>
 where
+    A: Sub<B, Output = C>,
     HypB: TensorCompatible<Kind = Tensor>,
-
     Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
     HypA: Hyper<Elem = A>,
     HypB: Hyper<Elem = B>,
-    A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
@@ -210,8 +211,8 @@ where
 
 impl<A, B, As, N, Ns> SubImpl<B, Elem> for Prism<A, As, N, Ns>
     where
-    B: TensorCompatible<Kind = Elem>,
     A: Sub<B>,
+    B: TensorCompatible<Kind = Elem>,
     Self: Mappable<<A as Sub<B>>::Output> + Container<Elem = A>,
     B: Clone,
 {
@@ -223,13 +224,11 @@ impl<A, B, As, N, Ns> SubImpl<B, Elem> for Prism<A, As, N, Ns>
 
 impl<HypA, HypB, HypC, HypAAligned, HypBAligned, A, B, C, As, N, Ns> SubImpl<HypB, Tensor> for Prism<A, As, N, Ns>
 where
+    A: Sub<B, Output = C>,
     HypB: TensorCompatible<Kind = Tensor>,
-
-
     Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
     HypA: Hyper<Elem = A>,
     HypB: Hyper<Elem = B>,
-    A: Sub<B, Output = C>,
     HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
     HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
     HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
@@ -275,24 +274,6 @@ where
 //     }
 // }
 
-pub fn align_subtraction() {
-    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
-    let res = mat - scalar;
-    println!("{:?}", res);
-
-    // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res2 = Scalar::new(10i32) - 20i32;
-    println!("{:?}", res2);
-
-    let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-    let res3 = mat2 - 10;
-    println!("{:?}", res3);
-}
-
-pub fn subtract42(mat: Mat<i8, 64, 64>) -> Mat<i8, 64, 64> {
-    mat - 42
-}
 
 #[cfg(test)]
 mod tests {
@@ -442,6 +423,7 @@ mod tests {
     }
 }
 
+#[doc(hidden)]
 pub fn reshape_example(flat: Array<usize, U<20>>) -> Tensor3<usize, 2, 2, 5> {
     // let flat = arr![1,2,3,4,5,6,7,8,9,10,11,12];
 
@@ -455,6 +437,7 @@ pub fn reshape_example(flat: Array<usize, U<20>>) -> Tensor3<usize, 2, 2, 5> {
     // println!("{:?}", &three_by_four);
 }
 
+#[doc(hidden)]
 pub fn matrixprod(
     two_by_three: Array<GenericArray<usize, U2>, U3>,
     three_by_two: Array<GenericArray<usize, U3>, U2>,
@@ -462,6 +445,7 @@ pub fn matrixprod(
     matrixp(&two_by_three, &three_by_two)
 }
 
+#[doc(hidden)]
 pub fn hyper_first(v123: Array<usize, U3>, v456: GenericArray<usize, U3>) -> usize {
     // let v123 = arr![1, 2, 3];
     // let v456 = arr![4, 5, 6];
@@ -470,17 +454,40 @@ pub fn hyper_first(v123: Array<usize, U3>, v456: GenericArray<usize, U3>) -> usi
     *val.first()
 }
 
-// pub fn innerprod(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
-//     // use generic_array::arr;
-//     // let v123 = arr![1,2,3];
-//     // let v456 = arr![4,5,6];
-//     innerp(&v123, &v456)
-// }
+#[doc(hidden)]
+pub fn innerprod(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+    // use generic_array::arr;
+    // let v123 = arr![1,2,3];
+    // let v456 = arr![4,5,6];
+    innerp(&v123, &v456)
+}
 
-// // pub fn innerprod_orig() {
-// pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
-//     // use generic_array::arr;
-//     // let v123 = arr![1,2,3];
-//     // let v456 = arr![4,5,6];
-//     innerp_orig(&v123, &v456)
-// }
+// pub fn innerprod_orig() {
+#[doc(hidden)]
+pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -> usize {
+    // use generic_array::arr;
+    // let v123 = arr![1,2,3];
+    // let v456 = arr![4,5,6];
+    innerp_orig(&v123, &v456)
+}
+
+#[doc(hidden)]
+pub fn align_subtraction() {
+    let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let scalar = Vect::<usize, 3>::from_flat(arr![1, 2, 3]);
+    let res = mat - scalar;
+    println!("{:?}", res);
+
+    // let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let res2 = Scalar::new(10i32) - 20i32;
+    println!("{:?}", res2);
+
+    let mat2 = Mat::<i32, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+    let res3 = mat2 - 10;
+    println!("{:?}", res3);
+}
+
+#[doc(hidden)]
+pub fn subtract42(mat: Mat<i8, 64, 64>) -> Mat<i8, 64, 64> {
+    mat - 42
+}

@@ -502,3 +502,65 @@ where
     Ns: HList,
 {
 }
+
+/// Trait implemented for every rank-2 or higher Tensor.
+/// Transposes the outermost two dimensions.
+///
+/// So
+/// - a [`Mat<T, X, Y>`] is transposed into a [`Mat<T, Y, X>`].
+/// - a [`Tensor3<T, X, Y, Z>`] is transposed into a [`Tensor3<T, Y, X, Z>`].
+/// - etc.
+///
+/// TODO possibility to map over innermore dimensions.
+///
+/// ```rust
+/// use naperian::hyper::HyperTranspose;
+/// use naperian::{Mat, Hyper};
+/// use generic_array::arr;
+/// let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+/// let mat3x2 = mat2x3.transpose();
+/// println!("{:?}", mat3x2);
+/// ```
+pub trait HyperTranspose: Hyper {
+    type Transposed;
+    fn transpose(self) -> Self::Transposed;
+}
+
+use crate::NaperianTranspose;
+
+impl<T, Tts, Tts2, N, Ns, N2, N2s> HyperTranspose for Prism<T, Prism<Array<T, N>, Tts, N2, N2s>, N, Ns>
+where
+    T: Clone,
+    N: NonZero + ArrayLength,
+    N2: NonZero + ArrayLength,
+    Ns: HList,
+    N2s: HList,
+    Self: Hyper<Inner = Prism<Array<T, N>, Tts, N2, N2s>>,
+    Tts: Hyper<Dimensions = N2s, Elem = Array<Array<T, N>, N2>> + Container<Elem = Array<Array<T, N>, N2>, Containing<Array<Array<T, N2>, N>> = Tts2> + Mappable<Array<Array<T, N2>, N>>,
+    Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems>,
+    Prism<Array<T, N>, Tts, N2, N2s>: Hyper<Dimensions = Ns>,
+{
+    type Transposed = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, HCons<N, N2s>>;
+    fn transpose(self) -> Self::Transposed {
+        let inner = self.0.0;
+        let res = inner.map(NaperianTranspose::transpose);
+        Prism(Prism(res, PhantomData), PhantomData)
+    }
+}
+
+pub fn example() {
+    use crate::hyper::HyperTranspose;
+    use crate::{Mat, Hyper};
+    use generic_array::arr;
+    let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+    let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
+    println!("{:?}", mat3x2);
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn transpose_example() {
+        super::example();
+    }
+}

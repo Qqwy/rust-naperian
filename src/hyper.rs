@@ -29,6 +29,23 @@ use typenum::{NonZero, Unsigned};
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone)]
 #[repr(transparent)]
 pub struct Scalar<T>(pub(crate) T);
+
+impl<T, N> Scalar<Array<T, N>>
+where
+    N: ArrayLength + NonZero,
+{
+    /// Turns a lower-dimension Hyper
+    /// whose element type is Array<T, N>
+    /// into a one-dimension-higher Hyper
+    /// whose element type is T,
+    /// with the new dimension being N.
+    ///
+    /// Inverse of [`Prism::lower`].
+    pub fn lift(self) -> Prism<T, Self, N, HNil>  {
+        Prism(self, core::marker::PhantomData)
+    }
+}
+
 unsafe impl<T> Container for Scalar<T> {
     type Elem = T;
     type Containing<X> = Scalar<X>;
@@ -106,7 +123,7 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Prism")
             .field("dimensions", &Self::dimensions())
-            .field("contents", &self.inner())
+            .field("contents", &self.orig())
             .finish()
     }
 }
@@ -117,8 +134,29 @@ where
     Ns: HList,
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
 {
-    pub fn build(vals: Ts) -> Self {
-        Prism(vals, core::marker::PhantomData)
+    /// Lowers a rank-(K+1) Hyper
+    /// into a rank-K Hyper
+    /// by turning the element type from T into Array<T, N>.
+    ///
+    /// Inverse of [`Scalar::lift`] / [`Prism::lift`].
+    pub fn lower(self) -> Ts {
+        self.0
+    }
+}
+
+impl<T, Ts, N, R, Rs> Prism<Array<T, N>, Ts, R, Rs>
+where
+    N: ArrayLength + NonZero,
+{
+    /// Turns a rank-K Hyper
+    /// whose element type is Array<T, C>
+    /// into a rank-(K+1) Hyper
+    /// whose element type is T.
+    /// The new (innermost) dimension is `C`.
+    ///
+    /// Inverse of [`Prism::lower`].
+    pub fn lift(self) -> Prism<T, Self, N, HCons<R, Rs>>  {
+        Prism(self, core::marker::PhantomData)
     }
 }
 
@@ -188,7 +226,7 @@ pub trait Hyper: Sized {
     /// Returns a reference to the innermost form of this Hyper;
     ///
     /// c.f. [`Self::Orig`].
-    fn inner(&self) -> &Self::Orig;
+    fn orig(&self) -> &Self::Orig;
 
     fn amount_of_elems(&self) -> usize {
         Self::AmountOfElems::to_usize()
@@ -251,7 +289,7 @@ impl<T> Hyper for Scalar<T> {
     fn first(&self) -> &T {
         &self.0
     }
-    fn inner(&self) -> &T {
+    fn orig(&self) -> &T {
         &self.0
     }
 
@@ -308,8 +346,8 @@ where
         first_row
     }
 
-    fn inner(&self) -> &Self::Orig {
-        self.0.inner()
+    fn orig(&self) -> &Self::Orig {
+        self.0.orig()
     }
 
     fn dimensions() -> Array<usize, Self::Rank> {
@@ -549,9 +587,6 @@ where
 }
 
 pub fn example() {
-    use crate::hyper::HyperTranspose;
-    use crate::{Mat, Hyper};
-    use generic_array::arr;
     let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
     let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
     println!("{:?}", mat3x2);

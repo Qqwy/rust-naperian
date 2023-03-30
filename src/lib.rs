@@ -139,17 +139,17 @@ where
 
 #[doc(hidden)]
 pub fn foo() -> Tensor3<usize, 2, 2, 3> {
-    let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
-    let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
+    let _v: Vect<usize, 3> = Scalar::new(arr![1, 2, 3]).lift();
+    let mat: Mat<usize, 2, 3> = Scalar::new(arr![
         arr![1, 2, 3],
         arr![4, 5, 6]
-    ])));
-    // let tens: Tensor3<usize, U2, U3, U1> = Prism::build(Prism::build(Prism::build(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
+    ]).lift().lift();
+    // let tens: Tensor3<usize, U2, U3, U1> = Prism::lift(Prism::lift(Prism::lift(Scalar::new(arr![arr![arr![1,2,3], arr![4,5,6]]]))));
     let tens: Tensor3<usize, 2, 2, 3> =
-        Prism::build(Prism::build(Prism::build(Scalar::new(arr![
+        Scalar::new(arr![
             arr![arr![1, 2, 3], arr![4, 5, 6]],
             arr![arr![7, 8, 9], arr![10, 11, 12]]
-        ]))));
+        ]).lift().lift().lift();
     println!("{:?}", &mat);
     println!("{:?}", &tens);
     let flat: &Array<usize, U12> = unsafe { core::mem::transmute(&tens) };
@@ -160,11 +160,11 @@ pub fn foo() -> Tensor3<usize, 2, 2, 3> {
 
 #[doc(hidden)]
 pub fn alignment() {
-    let _v: Vect<usize, 3> = Prism::build(Scalar::new(arr![1, 2, 3]));
-    let mat: Mat<usize, 2, 3> = Prism::build(Prism::build(Scalar::new(arr![
+    let _v: Vect<usize, 3> = Scalar::new(arr![1, 2, 3]).lift();
+    let mat: Mat<usize, 2, 3> = Scalar::new(arr![
         arr![1, 2, 3],
         arr![4, 5, 6]
-    ])));
+    ]).lift().lift();
     let mat2: Tensor3<usize, 3, 2, 3> = mat.align();
     // println!("mat: {:?}", mat);
     println!("mat2: {mat2:?}");
@@ -279,11 +279,11 @@ mod tests {
         println!("{:?}", val);
         println!("{:?}", val.innermost_dimension());
         println!("{:?}", val.amount_of_elems());
-        let val = Prism::build(Scalar::new(two_by_three));
+        let val = Scalar::new(two_by_three).lift();
         println!("{:?}", val);
         println!("{:?}", val.innermost_dimension());
         println!("{:?}", val.amount_of_elems());
-        let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
+        let val = Scalar::new(two_by_three).lift().lift();
         let first = val.first();
         println!("{:?}", val);
         println!("{:?}", val.innermost_dimension());
@@ -345,7 +345,7 @@ pub fn hyper_first(v123: Array<usize, U3>, v456: GenericArray<usize, U3>) -> usi
     // let v123 = arr![1, 2, 3];
     // let v456 = arr![4, 5, 6];
     let two_by_three: Array<GenericArray<usize, _>, _> = arr![v123, v456];
-    let val = Prism::build(Prism::build(Scalar::new(two_by_three)));
+    let val = Scalar::new(two_by_three).lift().lift();
     *val.first()
 }
 

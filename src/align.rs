@@ -2,7 +2,7 @@
 
 use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
-use crate::functional::hlist::{HCons, HList};
+use crate::functional::tlist::{TCons, TList};
 use core::marker::PhantomData;
 use generic_array::sequence::Lengthen;
 use generic_array::ArrayLength;
@@ -42,12 +42,12 @@ where
 
 impl<T, Ts, N, Ns, Other, DimensionsRest> Alignable<Other> for Prism<T, Ts, N, Ns>
 where
-    DimensionsRest: HList,
-    Other: Hyper<Elem = Self::Elem, Dimensions = HCons<N, DimensionsRest>>,
+    DimensionsRest: TList,
+    Other: Hyper<Elem = Self::Elem, Dimensions = TCons<N, DimensionsRest>>,
     Other::Inner: Hyper<Elem = Array<T, N>>,
 
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Alignable<Other::Inner>,
-    Ns: HList,
+    Ns: TList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Ts::Rank: core::ops::Add<B1>,
@@ -83,7 +83,7 @@ impl<T, U> MatchingShape<Scalar<U>> for Scalar<T> {
 impl<U, T, Ts, N, Ns> MatchingShape<Scalar<U>> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
 {
     type Output = Prism<T, Ts, N, Ns>;
 }
@@ -91,7 +91,7 @@ where
 impl<U, T, Ts, N, Ns> MatchingShape<Prism<T, Ts, N, Ns>> for Scalar<U>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
 {
     type Output = Prism<U, Ts, N, Ns>;
 }
@@ -99,8 +99,8 @@ where
 impl<U, T, Ts, Ts2, N, Ns, Ns2> MatchingShape<Prism<U, Ts, N, Ns>> for Prism<T, Ts2, N, Ns2>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
-    Ns2: HList,
+    Ns: TList,
+    Ns2: TList,
     Ts: MatchingShape<Ts2>,
     <Ts as MatchingShape<Ts2>>::Output: Hyper,
 {

@@ -1,7 +1,7 @@
 use generic_array::ArrayLength;
 use typenum::NonZero;
 
-use super::{Array, HCons, HNil, Prism};
+use super::{Array, TCons, TNil, Prism};
 use super::functional::New;
 use super::hyper::Liftable;
 
@@ -15,7 +15,7 @@ pub type Scalar<T> = super::Scalar<T>;
 /// This is a type alias.
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
+pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, TNil>;
 
 /// Mat, a Matrix with a statically-known dimensions (rows, colums).
 ///
@@ -24,7 +24,7 @@ pub type Vect<T, N> = Prism<T, Scalar<Array<T, N>>, N, HNil>;
 /// This is a type alias.
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`Hyper`] trait which contains many common operations.
-pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<Rows, HNil>>;
+pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, TCons<Rows, TNil>>;
 
 /// Rank-3 tensors (slices, rows, columns).
 ///
@@ -32,7 +32,7 @@ pub type Mat<T, Rows, Cols> = Prism<T, Vect<Array<T, Cols>, Rows>, Cols, HCons<R
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`Hyper`] trait which contains many common operations.
 pub type Tensor3<T, Slices, Rows, Cols> =
-    Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, HCons<Rows, HCons<Slices, HNil>>>;
+    Prism<T, Mat<Array<T, Cols>, Slices, Rows>, Cols, TCons<Rows, TCons<Slices, TNil>>>;
 
 /// Rank-4 tensors (blocks, slices, rows, columns).
 ///
@@ -43,7 +43,7 @@ pub type Tensor4<T, Blocks, Slices, Rows, Cols> = Prism<
     T,
     Tensor3<Array<T, Cols>, Blocks, Slices, Rows>,
     Cols,
-    HCons<Rows, HCons<Slices, HCons<Blocks, HNil>>>,
+    TCons<Rows, TCons<Slices, TCons<Blocks, TNil>>>,
 >;
 
 impl<T, N> From<Array<T, N>> for Vect<T, N>
@@ -94,7 +94,7 @@ where
     Rows: ArrayLength + NonZero,
     Cols: ArrayLength + NonZero,
     Self: Hyper,
-Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = HCons<Rows, HNil>>,
+Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = TCons<Rows, TNil>>,
 {
     /// Returns a reference to this [`Mat`], viewed as an array of its rows.
     ///
@@ -118,7 +118,7 @@ where
     Cols: ArrayLength + NonZero,
     Self: Hyper + HyperTranspose<Transposed = Mat<T, Cols, Rows>>,
     Mat<T, Cols, Rows>: Hyper,
-Vect<Array<T, Rows>, Cols>: super::Hyper<Dimensions = HCons<Cols, HNil>, Orig = Array<Vect<T, Rows>, Cols>>,
+Vect<Array<T, Rows>, Cols>: super::Hyper<Dimensions = TCons<Cols, TNil>, Orig = Array<Vect<T, Rows>, Cols>>,
 {
     /// Consumes this [`Mat`], turning it into an array of its columns.
     ///

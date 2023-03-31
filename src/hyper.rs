@@ -10,7 +10,7 @@ pub use crate::functional::{
 use core::marker::PhantomData;
 
 pub use crate::fin::Fin;
-use crate::functional::hlist::{HCons, HList, HNil};
+use crate::functional::tlist::{TCons, TList, TNil};
 
 use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
@@ -53,7 +53,7 @@ impl<T> core::fmt::Debug for Scalar<T>
 //     /// with the new dimension being N.
 //     ///
 //     /// Inverse of [`Prism::lower`].
-//     pub fn lift(self) -> Prism<T, Self, N, HNil>  {
+//     pub fn lift(self) -> Prism<T, Self, N, TNil>  {
 //         Prism(self, core::marker::PhantomData)
 //     }
 // }
@@ -74,7 +74,7 @@ unsafe impl<T> Container for Scalar<T> {
 /// - T: The element type
 /// - Ts: A prism of Rank-(N-1) but whose element type is `Array<T, N>`.
 /// - N: The innermost dimension of the tensor (which implements [`ArrayLength`]).
-/// - Ns: A [`HList`] containing all other dimensions of the tensor.
+/// - Ns: A [`TList`] containing all other dimensions of the tensor.
 ///
 /// Implementation of the 'Scalar' variant of the Hyper GADT from the Naperian paper.
 /// Note that (at least currently) Prism will only use `Array<T, N>` as inner elements,
@@ -97,7 +97,7 @@ impl<T> New<T> for Scalar<T> {
 impl<T, Ts, N, Ns> New<T> for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Container,
     Ts::AmountOfElems: core::ops::Mul<N>,
 Prod<Ts::AmountOfElems, N>: ArrayLength,
@@ -118,7 +118,7 @@ Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Ra
 impl<T, Ts, N, Ns> core::fmt::Debug for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Prod<Ts::AmountOfElems, N>: ArrayLength,
@@ -144,7 +144,7 @@ where
 impl<T, Ts, N, Ns> Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
     Ts: Hyper<Dimensions = Ns>,
 {
     /// Lowers a rank-(K+1) Hyper
@@ -168,7 +168,7 @@ where
 //     /// The new (innermost) dimension is `C`.
 //     ///
 //     /// Inverse of [`Prism::lower`].
-//     pub fn lift(self) -> Prism<T, Self, N, HCons<R, Rs>>  {
+//     pub fn lift(self) -> Prism<T, Self, N, TCons<R, Rs>>  {
 //         Prism(self, core::marker::PhantomData)
 //     }
 // }
@@ -177,7 +177,7 @@ unsafe impl<T, Ts, N, Ns> Container for Prism<T, Ts, N, Ns>
 where
     N: ArrayLength + NonZero,
     Ts: Hyper<Dimensions = Ns> + Container,
-    Ns: HList,
+    Ns: TList,
 {
     type Elem = T;
     type Containing<X> = Prism<X, Ts::Containing<GenericArray<X, N>>, N, Ns>;
@@ -211,7 +211,7 @@ pub trait Hyper: Sized {
     /// A type-level list of type-level numbers representing the dimensions of this tensor.
     ///
     /// (c.f. [`typenum::Unsigned`])
-    type Dimensions: HList;
+    type Dimensions: TList;
 
     /// The element type of the structure.
     type Elem;
@@ -303,7 +303,7 @@ impl<T, N> Liftable for Scalar<Array<T, N>>
     where
     N: ArrayLength + NonZero
 {
-    type Lifted = Prism<T, Self, N, HNil>;
+    type Lifted = Prism<T, Self, N, TNil>;
     fn lift(self) -> Self::Lifted {
         Prism(self, PhantomData)
     }
@@ -312,15 +312,16 @@ impl<T, N> Liftable for Scalar<Array<T, N>>
 impl<T, Ts, N, R, Rs> Liftable for Prism<Array<T, N>, Ts, R, Rs>
 where
     N: ArrayLength + NonZero,
+    Rs: TList,
 {
-    type Lifted = Prism<T, Self, N, HCons<R, Rs>>;
+    type Lifted = Prism<T, Self, N, TCons<R, Rs>>;
     fn lift(self) -> Self::Lifted {
         Prism(self, PhantomData)
     }
 }
 
 impl<T> Hyper for Scalar<T> {
-    type Dimensions = HNil;
+    type Dimensions = TNil;
     type Elem = T;
     type Inner = Self;
     type Orig = T;
@@ -363,7 +364,7 @@ impl<T> Hyper for Scalar<T> {
 impl<T, Ts, N, Ns> Hyper for Prism<T, Ts, N, Ns>
 where
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>>,
-    Ns: HList,
+    Ns: TList,
     N: ArrayLength + NonZero,
     Ts::AmountOfElems: core::ops::Mul<N>,
     Ts::Rank: core::ops::Add<B1>,
@@ -376,7 +377,7 @@ where
     Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
-    type Dimensions = HCons<N, Ns>;
+    type Dimensions = TCons<N, Ns>;
     type Elem = T;
     type Inner = Ts;
     type Orig = Ts::Orig;
@@ -462,7 +463,7 @@ where
     N: ArrayLength + NonZero,
     Ts: Hyper<Dimensions = Ns> + Mappable<Array<A, N>> + Container<Elem = Array<T, N>>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
-    Ns: HList,
+    Ns: TList,
 {
     fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
         let res = self.0.map(|arr| arr.map(&mut fun));
@@ -482,7 +483,7 @@ where
     N: ArrayLength + NonZero,
     Ts: Hyper<Dimensions = Ns> + Mappable2<Array<A, N>, Array<U, N>>,
     Ts::Containing<A>: Hyper<Dimensions = Ns>,
-    Ns: HList,
+    Ns: TList,
 {
     fn map2<'b, B: 'b>(
         &self,
@@ -592,7 +593,7 @@ where
     BsAligned: Hyper<Elem = B, AmountOfElems = SelfAligned::AmountOfElems>
         + Container<Containing<B> = BsAligned>,
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
 {
 }
 
@@ -626,15 +627,15 @@ where
     T: Clone,
     N: NonZero + ArrayLength,
     N2: NonZero + ArrayLength,
-    Ns: HList,
-    N2s: HList,
+    Ns: TList,
+    N2s: TList,
     Self: Hyper<Inner = Prism<Array<T, N>, Tts, N2, N2s>>,
     Tts: Hyper<Dimensions = N2s, Elem = Array<Array<T, N>, N2>> + Container<Elem = Array<Array<T, N>, N2>, Containing<Array<Array<T, N2>, N>> = Tts2> + Mappable<Array<Array<T, N2>, N>>,
     Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems> + Liftable,
     Prism<Array<T, N>, Tts, N2, N2s>: Hyper<Dimensions = Ns>,
-    Tts2::Lifted: Liftable<Lifted = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, HCons<N, N2s>>>,
+    Tts2::Lifted: Liftable<Lifted = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, TCons<N, N2s>>>,
 {
-    type Transposed = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, HCons<N, N2s>>;
+    type Transposed = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, TCons<N, N2s>>;
     fn transpose(self) -> Self::Transposed {
         let inner = self.lower().lower();
         let res = inner.map(NaperianTranspose::transpose);
@@ -662,7 +663,7 @@ impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
     Self: Hyper<Elem = T>,
     Ts: Hyper<Elem = Array<T, N>, Dimensions = Ns>,
     N: ArrayLength + NonZero,
-    Ns: HList,
+    Ns: TList,
     Ts::Orig: IntoIterator,
 {
     type Item = <<Ts as Hyper>::Orig as IntoIterator>::Item;

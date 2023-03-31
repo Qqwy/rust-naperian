@@ -1,4 +1,4 @@
-use super::{Array, HCons, HNil, Prism};
+use super::{Array, TCons, TNil, Prism};
 use typenum::U;
 
 /// A single scalar value.
@@ -11,7 +11,7 @@ pub type Scalar<T> = super::Scalar<T>;
 /// This is a type alias.
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`super::Hyper`] trait which contains many common operations.
-pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U<N>>>, U<N>, HNil>;
+pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U<N>>>, U<N>, TNil>;
 
 /// Mat, a Matrix with a statically-known dimensions (rows, colums).
 ///
@@ -21,7 +21,7 @@ pub type Vect<T, const N: usize> = Prism<T, Scalar<Array<T, U<N>>>, U<N>, HNil>;
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`super::Hyper`] trait which contains many common operations.
 pub type Mat<T, const ROWS: usize, const COLS: usize> =
-    Prism<T, Vect<Array<T, U<COLS>>, ROWS>, U<COLS>, HCons<U<ROWS>, HNil>>;
+    Prism<T, Vect<Array<T, U<COLS>>, ROWS>, U<COLS>, TCons<U<ROWS>, TNil>>;
 
 /// Rank-3 tensors (slices, rows, columns).
 ///
@@ -29,7 +29,7 @@ pub type Mat<T, const ROWS: usize, const COLS: usize> =
 /// During normal usage you do not need to understand the backing type,
 /// only that it implements the [`super::Hyper`] trait which contains many common operations.
 pub type Tensor3<T, const SLICES: usize, const ROWS: usize, const COLS: usize> =
-    Prism<T, Mat<Array<T, U<COLS>>, SLICES, ROWS>, U<COLS>, HCons<U<ROWS>, HCons<U<SLICES>, HNil>>>;
+    Prism<T, Mat<Array<T, U<COLS>>, SLICES, ROWS>, U<COLS>, TCons<U<ROWS>, TCons<U<SLICES>, TNil>>>;
 
 /// Rank-4 tensors (blocks, slices, rows, columns).
 ///
@@ -46,7 +46,7 @@ pub type Tensor4<
     T,
     Tensor3<Array<T, U<COLS>>, BLOCKS, SLICES, ROWS>,
     U<COLS>,
-    HCons<U<ROWS>, HCons<U<SLICES>, HCons<U<BLOCKS>, HNil>>>,
+    TCons<U<ROWS>, TCons<U<SLICES>, TCons<U<BLOCKS>, TNil>>>,
 >;
 
 

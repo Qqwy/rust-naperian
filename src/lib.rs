@@ -60,7 +60,7 @@
 //! Both emulated approaches in Rust introduce more verbose type constraint bounds.
 //!
 //! #### Support for type-level linked lists and type-level numbers
-//! Type-level lists are supported using [`naperian::functional::hlist::HList`].
+//! Type-level lists are supported using [`naperian::functional::hlist::TList`].
 //!
 //! Type-level unsigned integers are supported using the [`typenum`] crate.
 //! (_Until the [generic_const_exprs](https://github.com/rust-lang/rust/issues/76560)_ feature is ever finished and stabilized,
@@ -116,7 +116,7 @@ use typenum::consts::*;
 
 use typenum::U;
 
-use functional::hlist::{HCons, HNil};
+use functional::tlist::{TCons, TNil};
 
 /// Calculate the inner product (also known as the dot product) of two collections of the same shape.
 ///

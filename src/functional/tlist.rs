@@ -170,7 +170,7 @@ impl<H, T> TReverse for TCons<H, T>
     type Output = Concat<Reverse<T>, TCons<H, TNil>>;
 }
 
-use static_assertions::{assert_impl_one, assert_impl_all};
+
 use typenum::{Bit, Unsigned, Add1, B0, B1};
 use typenum::consts::U0;
 /// Type-level 'function' to calculate the length of a TList.

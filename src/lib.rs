@@ -91,7 +91,7 @@ pub mod paper;
 pub mod compat;
 
 
-use align::Alignable;
+
 use common::Array;
 
 use functional::{Container, Mappable2, Naperian, NaperianTranspose};

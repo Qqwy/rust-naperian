@@ -2,7 +2,7 @@ use concat_idents::concat_idents;
 use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shr, Shl};
 use crate::compat::{TensorCompatible, Elem, Tensor};
 use crate::functional::{Container, Mappable2, Mappable};
-use crate::functional::tlist::{TList, TCons, Compatible};
+use crate::functional::tlist::{TList, Compatible};
 use super::{Scalar, Prism, Hyper, ShapeMatched, HyperMappable2};
 use crate::align;
 

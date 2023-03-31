@@ -128,7 +128,6 @@ macro_rules! impl_binop {
 
             impl<A, B, C, Kind, As, N, Ns> $op_trait<B> for Prism<A, As, N, Ns>
             where
-                TCons<N, Ns>: Compatible<B::Dims>,
                 Self: binop_trait_impl<B, Kind, Output = C>,
                 B: TensorCompatible<Kind = Kind>,
                 Ns: TList,

@@ -259,6 +259,7 @@ pub mod tests {
 
     // Inits:
     assert_type_eq_all!(TList![U1, U2], Inits<TList![U1, U2, U3]>);
+    assert_type_eq_all!(TList![], Inits<TList![U10]>);
 
     // Concat:
     assert_type_eq_all!(TList![U1, U2, U3], Concat<TList![U1], TList![U2, U3]>);

@@ -2,6 +2,7 @@ use concat_idents::concat_idents;
 use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shr, Shl};
 use crate::compat::{TensorCompatible, Elem, Tensor};
 use crate::functional::{Container, Mappable2, Mappable};
+use crate::functional::tlist::{TList, TCons, Compatible};
 use super::{Scalar, Prism, Hyper, ShapeMatched, HyperMappable2};
 use crate::align;
 
@@ -68,6 +69,7 @@ macro_rules! impl_binop {
                 A: $op_trait<B>,
                 B: TensorCompatible<Kind = Elem>,
                 Self: Mappable<<A as $op_trait<B>>::Output> + Container<Elem = A>,
+                Ns: TList,
                 B: Clone,
             {
                 type Output = <Self as Container>::Containing<<A as $op_trait<B>>::Output>;
@@ -82,6 +84,7 @@ macro_rules! impl_binop {
                 A: $op_trait<B>,
                 A: TensorCompatible<Kind = Elem>,
                 Prism<B, Bs, N, Ns>: Mappable<<A as $op_trait<B>>::Output> + Container<Elem = B>,
+                Ns: TList,
                 A: Clone,
             {
                 type Output = <Prism<B, Bs, N, Ns> as Container>::Containing<<A as $op_trait<B>>::Output>;
@@ -98,11 +101,13 @@ macro_rules! impl_binop {
                 Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
                 HypA: Hyper<Elem = A>,
                 HypB: Hyper<Elem = B>,
+                HypA::Dimensions: Compatible<HypB::Dimensions>,
                 HypB: ShapeMatched<HypA, HypBAligned> + align::MatchingShape<Self, Output = HypBAligned>,
                 HypA: ShapeMatched<HypB, HypAAligned> + align::MatchingShape<HypB, Output = HypAAligned>,
                 HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
                 HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
                 HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
+                Ns: TList,
             {
                 type Output = HypC;
                 fn binop(self, rhs: HypB) -> HypC {
@@ -123,8 +128,10 @@ macro_rules! impl_binop {
 
             impl<A, B, C, Kind, As, N, Ns> $op_trait<B> for Prism<A, As, N, Ns>
             where
+                TCons<N, Ns>: Compatible<B::Dims>,
                 Self: binop_trait_impl<B, Kind, Output = C>,
                 B: TensorCompatible<Kind = Kind>,
+                Ns: TList,
             {
                 type Output = C;
                 fn $op(self, rhs: B) -> C {

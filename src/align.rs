@@ -2,7 +2,7 @@
 
 use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
-use crate::functional::tlist::{TCons, TList};
+use crate::functional::tlist::{TCons, TList, Compatible};
 use core::marker::PhantomData;
 use generic_array::sequence::Lengthen;
 use generic_array::ArrayLength;
@@ -101,6 +101,7 @@ where
     N: ArrayLength + NonZero,
     Ns: TList,
     Ns2: TList,
+    Ns: Compatible<Ns2>,
     Ts: MatchingShape<Ts2>,
     <Ts as MatchingShape<Ts2>>::Output: Hyper,
 {

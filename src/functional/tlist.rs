@@ -236,6 +236,23 @@ impl<H, Ls: TList, Rs: TList> Prefix<TCons<H, Rs>> for TCons<H, Ls>
     Ls: Prefix<Rs>,
 {}
 
+
+pub trait Compatible<Other: TList> {}
+// compatible [] [] == true
+impl Compatible<TNil> for TNil {}
+
+// compatible [] (f : gs) == true
+impl<F, GS: TList> Compatible<TCons<F, GS>> for TNil {}
+
+// compatible (f : fs) [] == true
+impl<F, FS: TList> Compatible<TNil> for TCons<F, FS> {}
+
+// compatible (f : fs) (g : gs) == true
+impl<F, FS: TList, GS: TList> Compatible<TCons<F, GS>> for TCons<F, FS>
+where
+    FS: Compatible<GS>
+{}
+
 #[cfg(test)]
 pub mod tests {
     // Since all of this is type-level code,

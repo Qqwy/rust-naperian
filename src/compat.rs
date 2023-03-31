@@ -1,4 +1,5 @@
 use super::{Scalar, Prism};
+use crate::functional::tlist::{TList, TCons, TNil};
 
 pub enum Elem{}
 pub enum Tensor{}
@@ -48,6 +49,7 @@ impl TensorCompatibilityOption for Tensor {}
 /// This will always work.
 pub trait TensorCompatible {
     type Kind: TensorCompatibilityOption;
+    type Dims: TList;
 }
 
 
@@ -59,39 +61,49 @@ impl<T: TensorCompatible<Kind = Tensor>> IsTensor for T {}
 
 impl<T> TensorCompatible for Scalar<T> {
     type Kind = Tensor;
+    type Dims = TNil;
 }
-impl<T, Ts, N, Ns> TensorCompatible for Prism<T, Ts, N, Ns> {
+impl<T, Ts, N, Ns: TList> TensorCompatible for Prism<T, Ts, N, Ns> {
     type Kind = Tensor;
+    type Dims = TCons<N, Ns>;
 }
 
 impl TensorCompatible for usize {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for isize {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for i32 {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for i64 {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for u32 {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for u64 {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for i8 {
     type Kind = Elem;
+    type Dims = TNil;
 }
 
 impl TensorCompatible for u8 {
     type Kind = Elem;
+    type Dims = TNil;
 }

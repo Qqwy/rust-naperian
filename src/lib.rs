@@ -60,8 +60,7 @@
 //! Both emulated approaches in Rust introduce more verbose type constraint bounds.
 //!
 //! #### Support for type-level linked lists and type-level numbers
-//! Type-level lists are supported using the [`frunk`] crate's HList type.
-//! (though since we only use HList at the type level we might roll our own at some point).
+//! Type-level lists are supported using [`naperian::functional::hlist::HList`].
 //!
 //! Type-level unsigned integers are supported using the [`typenum`] crate.
 //! (_Until the [generic_const_exprs](https://github.com/rust-lang/rust/issues/76560)_ feature is ever finished and stabilized,

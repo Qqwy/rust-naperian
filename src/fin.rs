@@ -19,7 +19,6 @@ impl<N: Unsigned> core::fmt::Debug for Fin<N> {
     }
 }
 
-use const_format::formatcp;
 impl<N: Unsigned> Fin<N> {
     /// Creates a new Fin from a usize. Fallible, checked at runtime.
     ///

@@ -31,7 +31,7 @@ use typenum::{NonZero, Unsigned};
 pub struct Scalar<T>(pub(crate) T);
 
 impl<T> core::fmt::Debug for Scalar<T>
-    where
+where
     T: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -100,14 +100,14 @@ where
     Ns: TList,
     Ts: Hyper<Dimensions = Ns, Elem = Array<T, N>> + Container,
     Ts::AmountOfElems: core::ops::Mul<N>,
-Prod<Ts::AmountOfElems, N>: ArrayLength,
+    Prod<Ts::AmountOfElems, N>: ArrayLength,
     Ts::Orig: core::fmt::Debug,
     Ts::Rank: core::ops::Add<B1>,
-Add1<Ts::Rank>: ArrayLength,
+    Add1<Ts::Rank>: ArrayLength,
     Ts::Rank: core::ops::Add<B1> + ArrayLength,
-Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
-Sub1<Add1<Ts::Rank>>: ArrayLength,
-Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
+    Add1<Ts::Rank>: ArrayLength + core::ops::Sub<B1, Output = Ts::Rank>,
+    Sub1<Add1<Ts::Rank>>: ArrayLength,
+    Array<usize, Ts::Rank>: Lengthen<usize, Longer = GenericArray<usize, Add1<Ts::Rank>>>,
     T: Clone,
 {
     fn new(elem_val: T) -> Self {
@@ -182,7 +182,6 @@ where
     type Elem = T;
     type Containing<X> = Prism<X, Ts::Containing<GenericArray<X, N>>, N, Ns>;
 }
-
 
 /// The meat of the crate. Hyper is implemented by any Vect, Mat, and other Tensor-like type.
 ///
@@ -300,8 +299,8 @@ pub trait Liftable {
 }
 
 impl<T, N> Liftable for Scalar<Array<T, N>>
-    where
-    N: ArrayLength + NonZero
+where
+    N: ArrayLength + NonZero,
 {
     type Lifted = Prism<T, Self, N, TNil>;
     fn lift(self) -> Self::Lifted {
@@ -508,7 +507,6 @@ where
     }
 }
 
-
 /// Map a binary (two-parameter) function over two [`Hyper`]s.
 ///
 /// This method will work with `As` and `Bs` being Hypers of different ranks,
@@ -565,8 +563,8 @@ where
     }
 }
 
-impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
-    for Scalar<A>
+impl<Bs, SelfAligned, BsAligned, Cs, A, B, C>
+    HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Scalar<A>
 where
     Self: Hyper<Elem = A> + ShapeMatched<Bs, SelfAligned>,
     Bs: Hyper<Elem = B> + ShapeMatched<Self, BsAligned>,
@@ -622,7 +620,8 @@ pub trait HyperTranspose: Hyper {
 
 use crate::NaperianTranspose;
 
-impl<T, Tts, Tts2, N, Ns, N2, N2s> HyperTranspose for Prism<T, Prism<Array<T, N>, Tts, N2, N2s>, N, Ns>
+impl<T, Tts, Tts2, N, Ns, N2, N2s> HyperTranspose
+    for Prism<T, Prism<Array<T, N>, Tts, N2, N2s>, N, Ns>
 where
     T: Clone,
     N: NonZero + ArrayLength,
@@ -630,8 +629,11 @@ where
     Ns: TList,
     N2s: TList,
     Self: Hyper<Inner = Prism<Array<T, N>, Tts, N2, N2s>>,
-    Tts: Hyper<Dimensions = N2s, Elem = Array<Array<T, N>, N2>> + Container<Elem = Array<Array<T, N>, N2>, Containing<Array<Array<T, N2>, N>> = Tts2> + Mappable<Array<Array<T, N2>, N>>,
-    Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems> + Liftable,
+    Tts: Hyper<Dimensions = N2s, Elem = Array<Array<T, N>, N2>>
+        + Container<Elem = Array<Array<T, N>, N2>, Containing<Array<Array<T, N2>, N>> = Tts2>
+        + Mappable<Array<Array<T, N2>, N>>,
+    Tts2: Hyper<Dimensions = N2s, Elem = Array<Array<T, N2>, N>, AmountOfElems = Tts::AmountOfElems>
+        + Liftable,
     Prism<Array<T, N>, Tts, N2, N2s>: Hyper<Dimensions = Ns>,
     Tts2::Lifted: Liftable<Lifted = Prism<T, Prism<Array<T, N2>, Tts2, N, N2s>, N2, TCons<N, N2s>>>,
 {
@@ -659,7 +661,7 @@ impl<T> IntoIterator for Scalar<T> {
 /// - for [`Tensor3`], iteration is over the _slices_.
 /// - for [`Tensor4`], iteration is over the _blocks_.
 impl<T, Ts, N, Ns> IntoIterator for Prism<T, Ts, N, Ns>
-    where
+where
     Self: Hyper<Elem = T>,
     Ts: Hyper<Elem = Array<T, N>, Dimensions = Ns>,
     N: ArrayLength + NonZero,
@@ -680,14 +682,14 @@ mod tests {
 
     #[test]
     fn transpose_example() {
-        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
+        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
         let mat3x2: Mat<usize, 3, 2> = mat2x3.transpose();
         println!("{:?}", mat3x2);
     }
 
     #[test]
     fn iteration() {
-        let mat: Mat<usize, 2, 3> = [[1,2,3], [4,5,6]].into();
+        let mat: Mat<usize, 2, 3> = [[1, 2, 3], [4, 5, 6]].into();
         for row in mat.clone() {
             println!("{:?}", row);
         }
@@ -700,14 +702,16 @@ mod tests {
     #[test]
     fn deref_example() {
         use crate::fin::fin;
-        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
-        let zero: Fin<_> = Fin::cnew::<0>();// Fin::new(3).unwrap();
+        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
         println!("{:?}", mat2x3.rows());
         let res = &mat2x3[zero];
         println!("{:?}", res);
 
-        let t3 = Tensor3::<usize, 2, 3, 4>::from_flat(arr![1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
-        let zero: Fin<_> = Fin::cnew::<0>();// Fin::new(3).unwrap();
+        let t3 = Tensor3::<usize, 2, 3, 4>::from_flat(arr![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+        ]);
+        let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
         println!("{:?}", t3[zero]);
         println!("{:?}", t3[zero][Fin::cnew::<0>()]);
         println!("{:?}", t3[zero].rows()[0]);
@@ -730,13 +734,14 @@ where
 {
     type Output = T;
     fn index(&self, index: Fin<N>) -> &Self::Output {
-        &self.0.0[index.val()]
+        &self.0 .0[index.val()]
     }
 }
 
 // Implementation for rank-2 or higher Tensors
 // TODO Fix this horrible code. It does not work correctly for rank 3+ tensors.
-impl<T, Tts, N, N2, Ns, Ns2> Index<Fin<N2>> for Prism<T, Prism<GenericArray<T, N>, Tts, N2, Ns2>, N, Ns>
+impl<T, Tts, N, N2, Ns, Ns2> Index<Fin<N2>>
+    for Prism<T, Prism<GenericArray<T, N>, Tts, N2, Ns2>, N, Ns>
 where
     N: ArrayLength,
     N2: ArrayLength,
@@ -744,7 +749,8 @@ where
 {
     type Output = Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>;
     fn index(&self, index: Fin<N2>) -> &Self::Output {
-        let arr: &Array<Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>, N2> = unsafe { core::mem::transmute(&self.0) };
+        let arr: &Array<Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>, N2> =
+            unsafe { core::mem::transmute(&self.0) };
         &arr[index.val()]
     }
 }

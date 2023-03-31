@@ -15,7 +15,6 @@
 use core::marker::PhantomData;
 use core::ops::Add;
 
-
 pub use crate::TList;
 
 pub trait TList {}
@@ -30,7 +29,6 @@ pub struct TCons<H, T: TList>(PhantomData<(H, T)>);
 
 impl TList for TNil {}
 impl<H, T: TList> TList for TCons<H, T> {}
-
 
 #[macro_export]
 // Implementation based on the frunk crate's HList! macro.
@@ -61,7 +59,7 @@ pub trait TFirst: TList {
 
 impl<H, Ts> TFirst for TCons<H, Ts>
 where
-    Ts: TList
+    Ts: TList,
 {
     type Output = H;
 }
@@ -84,7 +82,7 @@ pub trait TRest: TList {
 
 impl<H, Ts> TRest for TCons<H, Ts>
 where
-    Ts: TList
+    Ts: TList,
 {
     type Output = Ts;
 }
@@ -103,12 +101,11 @@ impl<H> TLast for TCons<H, TNil> {
 }
 
 impl<H, Ts> TLast for TCons<H, Ts>
-    where
+where
     Ts: TLast,
 {
     type Output = Ts::Output;
 }
-
 
 /// Type-level 'function' to return the all elements but the last element of a TList
 ///
@@ -130,12 +127,10 @@ where
     type Output = TCons<H, Ts::Output>;
 }
 
-
 /// Type-level 'function' to concatenate two TLists.
 pub type Concat<Lhs, Rhs> = <Lhs as TConcat<Rhs>>::Output;
 
-pub trait TConcat<Rhs: TList>: TList
-{
+pub trait TConcat<Rhs: TList>: TList {
     type Output: TList;
 }
 
@@ -163,16 +158,15 @@ impl TReverse for TNil {
 }
 
 impl<H, T> TReverse for TCons<H, T>
-    where
+where
     T: TConcat<TCons<H, TNil>> + TReverse,
     Reverse<T>: TConcat<TCons<H, TNil>>,
 {
     type Output = Concat<Reverse<T>, TCons<H, TNil>>;
 }
 
-
-use typenum::{Bit, Unsigned, Add1, B0, B1};
 use typenum::consts::U0;
+use typenum::{Add1, Bit, Unsigned, B0, B1};
 /// Type-level 'function' to calculate the length of a TList.
 ///
 /// You can turn the result into a `usize` using `Len<List>::USIZE` or `Len<List>::to_usize()`.
@@ -231,11 +225,7 @@ pub trait Prefix<Other: TList> {}
 impl<Other: TList> Prefix<Other> for TNil {}
 
 // prefix (h : ls) (h : rs) == prefix ls rs
-impl<H, Ls: TList, Rs: TList> Prefix<TCons<H, Rs>> for TCons<H, Ls>
-    where
-    Ls: Prefix<Rs>,
-{}
-
+impl<H, Ls: TList, Rs: TList> Prefix<TCons<H, Rs>> for TCons<H, Ls> where Ls: Prefix<Rs> {}
 
 pub trait Compatible<Other: TList> {}
 // compatible [] [] == true
@@ -248,10 +238,7 @@ impl<F, GS: TList> Compatible<TCons<F, GS>> for TNil {}
 impl<F, FS: TList> Compatible<TNil> for TCons<F, FS> {}
 
 // compatible (f : fs) (g : gs) == true
-impl<F, FS: TList, GS: TList> Compatible<TCons<F, GS>> for TCons<F, FS>
-where
-    FS: Compatible<GS>,
-{}
+impl<F, FS: TList, GS: TList> Compatible<TCons<F, GS>> for TCons<F, FS> where FS: Compatible<GS> {}
 
 #[cfg(test)]
 pub mod tests {
@@ -288,5 +275,3 @@ pub mod tests {
     assert_type_eq_all!(B1, IsEmpty<TList![]>);
     assert_type_eq_all!(B0, IsEmpty<TList![i32]>);
 }
-
-

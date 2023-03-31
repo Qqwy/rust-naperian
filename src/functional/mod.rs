@@ -5,7 +5,7 @@ pub mod tlist;
 #[cfg(alloc)]
 extern crate alloc;
 #[cfg(alloc)]
-use alloc::{Vec, Box};
+use alloc::{Box, Vec};
 
 /// Trait which makes higher-kindred types tick
 ///

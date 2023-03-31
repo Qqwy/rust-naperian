@@ -1,9 +1,9 @@
 use generic_array::ArrayLength;
 use typenum::NonZero;
 
-use super::{Array, TCons, TNil, Prism};
 use super::functional::New;
 use super::hyper::Liftable;
+use super::{Array, Prism, TCons, TNil};
 
 /// A single scalar value.
 ///
@@ -48,7 +48,7 @@ pub type Tensor4<T, Blocks, Slices, Rows, Cols> = Prism<
 
 impl<T, N> From<Array<T, N>> for Vect<T, N>
 where
-    N: ArrayLength + NonZero
+    N: ArrayLength + NonZero,
 {
     fn from(value: Array<T, N>) -> Self {
         Scalar::new(value).lift()
@@ -65,7 +65,8 @@ where
     }
 }
 
-impl<T, Slices, Rows, Cols> From<Array<Array<Array<T, Cols>, Rows>, Slices>> for Tensor3<T, Slices, Rows, Cols>
+impl<T, Slices, Rows, Cols> From<Array<Array<Array<T, Cols>, Rows>, Slices>>
+    for Tensor3<T, Slices, Rows, Cols>
 where
     Slices: ArrayLength + NonZero,
     Rows: ArrayLength + NonZero,
@@ -76,7 +77,8 @@ where
     }
 }
 
-impl<T, Blocks, Slices, Rows, Cols> From<Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>> for Tensor4<T, Blocks, Slices, Rows, Cols>
+impl<T, Blocks, Slices, Rows, Cols> From<Array<Array<Array<Array<T, Cols>, Rows>, Slices>, Blocks>>
+    for Tensor4<T, Blocks, Slices, Rows, Cols>
 where
     Blocks: ArrayLength + NonZero,
     Slices: ArrayLength + NonZero,
@@ -94,13 +96,13 @@ where
     Rows: ArrayLength + NonZero,
     Cols: ArrayLength + NonZero,
     Self: Hyper,
-Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = TCons<Rows, TNil>>,
+    Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = TCons<Rows, TNil>>,
 {
     /// Returns a reference to this [`Mat`], viewed as an array of its rows.
     ///
     /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
     pub fn rows(&self) -> &Array<Vect<T, Cols>, Rows> {
-        unsafe { core::mem::transmute(&self.0)} // self.0.orig()
+        unsafe { core::mem::transmute(&self.0) } // self.0.orig()
     }
 
     /// Consumes this [`Mat`], turning it into an array of its rows.
@@ -118,7 +120,8 @@ where
     Cols: ArrayLength + NonZero,
     Self: Hyper + HyperTranspose<Transposed = Mat<T, Cols, Rows>>,
     Mat<T, Cols, Rows>: Hyper,
-Vect<Array<T, Rows>, Cols>: super::Hyper<Dimensions = TCons<Cols, TNil>, Orig = Array<Vect<T, Rows>, Cols>>,
+    Vect<Array<T, Rows>, Cols>:
+        super::Hyper<Dimensions = TCons<Cols, TNil>, Orig = Array<Vect<T, Rows>, Cols>>,
 {
     /// Consumes this [`Mat`], turning it into an array of its columns.
     ///

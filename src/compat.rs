@@ -1,7 +1,7 @@
-use super::{Scalar, Prism};
+use super::{Prism, Scalar};
 
-pub enum Elem{}
-pub enum Tensor{}
+pub enum Elem {}
+pub enum Tensor {}
 pub trait TensorCompatibilityOption {}
 impl TensorCompatibilityOption for Elem {}
 impl TensorCompatibilityOption for Tensor {}
@@ -49,7 +49,6 @@ impl TensorCompatibilityOption for Tensor {}
 pub trait TensorCompatible {
     type Kind: TensorCompatibilityOption;
 }
-
 
 trait IsTensor: TensorCompatible<Kind = Tensor> {}
 trait IsElem: TensorCompatible<Kind = Elem> {}

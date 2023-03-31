@@ -83,14 +83,12 @@ use std::println;
 pub mod aliases;
 pub mod align;
 pub mod common;
+pub mod compat;
 pub mod const_aliases;
 pub mod fin;
 pub mod functional;
 pub mod hyper;
 pub mod paper;
-pub mod compat;
-
-
 
 use common::Array;
 
@@ -100,7 +98,7 @@ use functional::{Container, Mappable2, Naperian, NaperianTranspose};
 pub use functional::{Mappable, New};
 
 #[doc(inline)]
-pub use hyper::{Hyper, Liftable, HyperMappable2};
+pub use hyper::{Hyper, HyperMappable2, Liftable};
 use hyper::{Prism, Scalar};
 use paper::innerp_orig;
 
@@ -196,8 +194,8 @@ mod tests {
 
     #[test]
     pub fn from_testing() {
-        let mat: aliases::Mat<_, _, _> = [[1,2,3], [4,5,6]].into();
-        let vec: aliases::Vect<_, _> = [1,2,3].into();
+        let mat: aliases::Mat<_, _, _> = [[1, 2, 3], [4, 5, 6]].into();
+        let vec: aliases::Vect<_, _> = [1, 2, 3].into();
         let res = mat + vec;
         assert_eq!(res, [[2, 4, 6], [5, 7, 9]].into());
     }

@@ -2,7 +2,7 @@
 
 use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
-use crate::functional::tlist::{TCons, TList, Compatible};
+use crate::functional::tlist::{Compatible, TCons, TList};
 use core::marker::PhantomData;
 use generic_array::sequence::Lengthen;
 use generic_array::ArrayLength;
@@ -134,7 +134,10 @@ where
 /// - If Left and Right are of equal rank, they are returned unchanged.
 /// - If Left is of lower rank than Right, Left's contents are repeated for the higher ranks.
 /// - Otherwise, Right is of lower rank than Left. Right's contents are repeated for the higher ranks.
-pub fn align2<Left, Right, LeftAligned, RightAligned>(left: Left, right: Right) -> (LeftAligned, RightAligned)
+pub fn align2<Left, Right, LeftAligned, RightAligned>(
+    left: Left,
+    right: Right,
+) -> (LeftAligned, RightAligned)
 where
     Left: Hyper<Elem = LeftAligned::Elem> + ShapeMatched<Right, LeftAligned>,
     Right: Hyper<Elem = RightAligned::Elem> + ShapeMatched<Left, RightAligned>,
@@ -144,10 +147,8 @@ where
     (left.align(), right.align())
 }
 
-
 // TODO temporary code so we can use cargo asm
-pub fn hypermax() {
-}
+pub fn hypermax() {}
 
 #[cfg(test)]
 mod tests {
@@ -159,7 +160,8 @@ mod tests {
         use crate::const_aliases::{Mat, Tensor3, Vect};
         use generic_array::arr;
         let mat = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-        let tens = Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+        let tens =
+            Tensor3::<usize, 2, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
         type Aligned = <Vect<usize, 1> as MatchingShape<Mat<usize, 2, 1>>>::Output;
         let res = core::any::type_name::<Aligned>();
         println!("MatchingShape: {res:?}");

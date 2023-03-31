@@ -1,10 +1,10 @@
-use concat_idents::concat_idents;
-use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shr, Shl};
-use crate::compat::{TensorCompatible, Elem, Tensor};
-use crate::functional::{Container, Mappable2, Mappable};
-use crate::functional::tlist::{TList, Compatible};
-use super::{Scalar, Prism, Hyper, ShapeMatched, HyperMappable2};
+use super::{Hyper, HyperMappable2, Prism, Scalar, ShapeMatched};
 use crate::align;
+use crate::compat::{Elem, Tensor, TensorCompatible};
+use crate::functional::tlist::{Compatible, TList};
+use crate::functional::{Container, Mappable, Mappable2};
+use concat_idents::concat_idents;
+use core::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Rem, Shl, Shr, Sub};
 
 macro_rules! impl_binop {
     ($op_trait:ident::$op:ident) => {

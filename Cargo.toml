@@ -9,11 +9,12 @@ edition = "2021"
 concat-idents = "1.1.4"
 # generic-array = "0.14.6"
 generic-array = { git = "https://github.com/fizyk20/generic-array.git", branch = "1.0" }
+impls = "1.0.3"
 sealed = "0.4.0"
 static_assertions = "1.1.0"
 typenum = { version = "1.16.0", features = ["const-generics"] }
 
 [features]
-default = [ "std" ]
-std = [ "alloc" ]
+default = ["std"]
+std = ["alloc"]
 alloc = []

@@ -250,7 +250,7 @@ impl<F, FS: TList> Compatible<TNil> for TCons<F, FS> {}
 // compatible (f : fs) (g : gs) == true
 impl<F, FS: TList, GS: TList> Compatible<TCons<F, GS>> for TCons<F, FS>
 where
-    FS: Compatible<GS>
+    FS: Compatible<GS>,
 {}
 
 #[cfg(test)]

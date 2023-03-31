@@ -367,3 +367,9 @@ pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -
     // let v456 = arr![4,5,6];
     innerp_orig(&v123, &v456)
 }
+
+fn foo() {
+    let mat = Mat::from([[1, 2, 3], [4, 5, 6], [7, 8, 9]]);
+    let vec = Vect::from([1, 2, 3, 4, 5]);
+    let res = mat * vec; // <- Compile error!
+}

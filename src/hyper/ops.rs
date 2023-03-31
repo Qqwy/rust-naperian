@@ -2,7 +2,7 @@ use concat_idents::concat_idents;
 use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor, Shr, Shl};
 use crate::compat::{TensorCompatible, Elem, Tensor};
 use crate::functional::{Container, Mappable2, Mappable};
-use super::{Scalar, Prism, Hyper, Maxed, HyperMappable2};
+use super::{Scalar, Prism, Hyper, ShapeMatched, HyperMappable2};
 use crate::align;
 
 macro_rules! impl_binop {
@@ -50,8 +50,8 @@ macro_rules! impl_binop {
                 Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
                 HypA: Hyper<Elem = A>,
                 HypB: Hyper<Elem = B>,
-                HypB: Maxed<HypA, HypBAligned> + align::Max<Scalar<A>, Output = HypBAligned>,
-                HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+                HypB: ShapeMatched<HypA, HypBAligned> + align::MatchingShape<Scalar<A>, Output = HypBAligned>,
+                HypA: ShapeMatched<HypB, HypAAligned> + align::MatchingShape<HypB, Output = HypAAligned>,
                 HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
                 HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
                 HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,
@@ -98,8 +98,8 @@ macro_rules! impl_binop {
                 Self: Container<Containing<A> = HypA> + HyperMappable2<HypB, HypAAligned, HypBAligned, HypC, A, B, C>,
                 HypA: Hyper<Elem = A>,
                 HypB: Hyper<Elem = B>,
-                HypB: Maxed<HypA, HypBAligned> + align::Max<Self, Output = HypBAligned>,
-                HypA: Maxed<HypB, HypAAligned> + align::Max<HypB, Output = HypAAligned>,
+                HypB: ShapeMatched<HypA, HypBAligned> + align::MatchingShape<Self, Output = HypBAligned>,
+                HypA: ShapeMatched<HypB, HypAAligned> + align::MatchingShape<HypB, Output = HypAAligned>,
                 HypAAligned: Hyper<Elem = A> + Container<Containing<B> = HypBAligned> + Container<Containing<C> = HypC> + Mappable2<A, C>,
                 HypBAligned: Hyper<Elem = B, AmountOfElems = HypAAligned::AmountOfElems> + Container<Containing<B> = HypBAligned>,
                 HypC: Hyper<Elem = C, AmountOfElems = HypAAligned::AmountOfElems>,

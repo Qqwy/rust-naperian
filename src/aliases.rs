@@ -94,20 +94,21 @@ where
     Rows: ArrayLength + NonZero,
     Cols: ArrayLength + NonZero,
     Self: Hyper,
-Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = HCons<Rows, HNil>, Orig = Array<Vect<T, Cols>, Rows>>,
+Vect<Array<T, Cols>, Rows>: super::Hyper<Dimensions = HCons<Rows, HNil>>,
 {
     /// Returns a reference to this [`Mat`], viewed as an array of its rows.
     ///
     /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
     pub fn rows(&self) -> &Array<Vect<T, Cols>, Rows> {
-        self.0.orig()
+        unsafe { core::mem::transmute(&self.0)} // self.0.orig()
     }
 
     /// Consumes this [`Mat`], turning it into an array of its rows.
     ///
     /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
     pub fn into_rows(self) -> Array<Vect<T, Cols>, Rows> {
-        self.lower().into_orig()
+        unsafe { core::mem::transmute_copy(&self.0) }
+        // self.lower().into_orig()
     }
 }
 

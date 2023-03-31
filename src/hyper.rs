@@ -1,6 +1,6 @@
 mod ops;
 
-use crate::align::{align2, Maxed};
+use crate::align::{align2, ShapeMatched};
 use crate::common::Array;
 pub use crate::const_aliases::*;
 pub use crate::functional::{
@@ -35,7 +35,8 @@ impl<T> core::fmt::Debug for Scalar<T>
     T: core::fmt::Debug,
 {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_tuple(core::any::type_name::<T>())
+        f.debug_tuple("Scalar")
+            .field(&core::any::type_name::<T>())
             .field(&self.0)
             .finish()
     }
@@ -519,8 +520,8 @@ pub fn binary<As, Bs, AsAligned, BsAligned, Cs, A, B, C>(
     fun: impl Fn(A, B) -> C,
 ) -> Cs
 where
-    As: Hyper<Elem = A> + Maxed<Bs, AsAligned>,
-    Bs: Hyper<Elem = B> + Maxed<As, BsAligned>,
+    As: Hyper<Elem = A> + ShapeMatched<Bs, AsAligned>,
+    Bs: Hyper<Elem = B> + ShapeMatched<As, BsAligned>,
     Cs: Hyper<Elem = C>,
     AsAligned: Container<Containing<B> = BsAligned>
         + Container<Containing<C> = Cs>
@@ -542,8 +543,8 @@ where
 /// The disadvantage is that [`HyperMappable2::map2`] by necessity can only work by-value.
 pub trait HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
 where
-    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
-    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
+    Self: Hyper<Elem = A> + ShapeMatched<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + ShapeMatched<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Container<Containing<B> = BsAligned>
         + Container<Containing<C> = Cs>
@@ -566,8 +567,8 @@ where
 impl<Bs, SelfAligned, BsAligned, Cs, A, B, C> HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C>
     for Scalar<A>
 where
-    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
-    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
+    Self: Hyper<Elem = A> + ShapeMatched<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + ShapeMatched<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Hyper<Elem = A>
         + Container<Containing<B> = BsAligned>
@@ -581,8 +582,8 @@ where
 impl<Bs, SelfAligned, BsAligned, Cs, A, B, C, Ts, N, Ns>
     HyperMappable2<Bs, SelfAligned, BsAligned, Cs, A, B, C> for Prism<A, Ts, N, Ns>
 where
-    Self: Hyper<Elem = A> + Maxed<Bs, SelfAligned>,
-    Bs: Hyper<Elem = B> + Maxed<Self, BsAligned>,
+    Self: Hyper<Elem = A> + ShapeMatched<Bs, SelfAligned>,
+    Bs: Hyper<Elem = B> + ShapeMatched<Self, BsAligned>,
     Cs: Hyper<Elem = C>,
     SelfAligned: Hyper<Elem = A>
         + Container<Containing<B> = BsAligned>
@@ -697,10 +698,18 @@ mod tests {
 
     #[test]
     fn deref_example() {
+        use crate::fin::fin;
         let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1,2,3,4,5,6]);
-        let zero: Fin<_> = Fin::new(0).unwrap();
-        let res = mat2x3[zero];
+        let zero: Fin<_> = Fin::cnew::<0>();// Fin::new(3).unwrap();
+        println!("{:?}", mat2x3.rows());
+        let res = &mat2x3[zero];
         println!("{:?}", res);
+
+        let t3 = Tensor3::<usize, 2, 3, 4>::from_flat(arr![1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24]);
+        let zero: Fin<_> = Fin::cnew::<0>();// Fin::new(3).unwrap();
+        println!("{:?}", t3[zero]);
+        println!("{:?}", t3[zero][Fin::cnew::<0>()]);
+        println!("{:?}", t3[zero].rows()[0]);
     }
 }
 
@@ -712,32 +721,29 @@ impl<T> Deref for Scalar<T> {
     }
 }
 
-// impl<T, Ts, N, Ns> Deref for Prism<T, Ts, N, Ns>
-// where
-//     Self: Hyper,
-//     Ts: Hyper<Dimensions = Ns>,
-//     N: ArrayLength + NonZero,
-//     Ns: HList,
-// {
-//     type Target = <Ts as Hyper>::Orig;
-//     fn deref(&self) -> &Self::Target {
-//         self.0.orig()
-//     }
-// }
-
-impl<T, Ts, N, Ns> Index<Fin<N>> for Prism<T, Ts, N, Ns>
-    where
-    N: Unsigned,
-    Self: Hyper,
-    // where
-    Ts: Hyper,
-    <Ts as Hyper>::Orig: Deref,
-    <<Ts as Hyper>::Orig as Deref>::Target: Index<usize>,
-    // Ts::Orig: Index<usize>,
-    // N: ArrayLength + NonZero
+// Implementation for Vect
+impl<T, N, N2, Ns> Index<Fin<N>> for Prism<T, Scalar<GenericArray<T, N2>>, N, Ns>
+where
+    N: ArrayLength,
+    N2: ArrayLength,
 {
-    type Output = <<<Ts as Hyper>::Orig as Deref>::Target as Index<usize>>::Output;
+    type Output = T;
     fn index(&self, index: Fin<N>) -> &Self::Output {
-        &self.0.orig()[index.val()]
+        &self.0.0[index.val()]
+    }
+}
+
+// Implementation for rank-2 or higher Tensors
+// TODO Fix this horrible code. It does not work correctly for rank 3+ tensors.
+impl<T, Tts, N, N2, Ns, Ns2> Index<Fin<N2>> for Prism<T, Prism<GenericArray<T, N>, Tts, N2, Ns2>, N, Ns>
+where
+    N: ArrayLength,
+    N2: ArrayLength,
+    Tts: Container,
+{
+    type Output = Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>;
+    fn index(&self, index: Fin<N2>) -> &Self::Output {
+        let arr: &Array<Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>, N2> = unsafe { core::mem::transmute(&self.0) };
+        &arr[index.val()]
     }
 }

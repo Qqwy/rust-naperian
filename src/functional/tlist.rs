@@ -170,6 +170,7 @@ impl<H, T> TReverse for TCons<H, T>
     type Output = Concat<Reverse<T>, TCons<H, TNil>>;
 }
 
+use static_assertions::{assert_impl_one, assert_impl_all};
 use typenum::{Bit, Unsigned, Add1, B0, B1};
 use typenum::consts::U0;
 /// Type-level 'function' to calculate the length of a TList.
@@ -213,6 +214,28 @@ impl<H, T: TList> TIsEmpty for TCons<H, T> {
     type Output = B0;
 }
 
+/// Constraint which only holds if a TList is a prefix of `Other`.
+///
+/// This is not a 'function', but rather a constraint you can use to make compiler errors more readable.
+///
+/// ```rust
+/// use naperian::functional::tlist::*;
+/// use typenum::consts::{U1, U2, U3, U4, U42};
+///
+/// static_assertions::assert_impl_all!(TList![U1, U2]: Prefix<TList![U1, U2, U3, U4]>);
+/// static_assertions::assert_not_impl_any!(TList![U42]: Prefix<TList![U1, U2, U3, U4]>);
+/// ```
+pub trait Prefix<Other: TList> {}
+
+// prefix [] _ = true
+impl<Other: TList> Prefix<Other> for TNil {}
+
+// prefix (h : ls) (h : rs) == prefix ls rs
+impl<H, Ls: TList, Rs: TList> Prefix<TCons<H, Rs>> for TCons<H, Ls>
+    where
+    Ls: Prefix<Rs>,
+{}
+
 #[cfg(test)]
 pub mod tests {
     // Since all of this is type-level code,
@@ -248,3 +271,5 @@ pub mod tests {
     assert_type_eq_all!(B1, IsEmpty<TList![]>);
     assert_type_eq_all!(B0, IsEmpty<TList![i32]>);
 }
+
+

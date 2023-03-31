@@ -102,15 +102,16 @@ where
     ///
     /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
     pub fn rows(&self) -> &Array<Vect<T, Cols>, Rows> {
-        unsafe { core::mem::transmute(&self.0) } // self.0.orig()
+        // SAFETY: A matrix is stored in row-major order
+        unsafe { core::mem::transmute(&self.0) }
     }
 
     /// Consumes this [`Mat`], turning it into an array of its rows.
     ///
     /// Since a [`Mat`] is stored in row-major order, this can be done without moving elements around.
     pub fn into_rows(self) -> Array<Vect<T, Cols>, Rows> {
+        // SAFETY: A matrix is stored in row-major order
         unsafe { core::mem::transmute_copy(&self.0) }
-        // self.lower().into_orig()
     }
 }
 
@@ -121,7 +122,7 @@ where
     Self: Hyper + HyperTranspose<Transposed = Mat<T, Cols, Rows>>,
     Mat<T, Cols, Rows>: Hyper,
     Vect<Array<T, Rows>, Cols>:
-        super::Hyper<Dimensions = TCons<Cols, TNil>, Orig = Array<Vect<T, Rows>, Cols>>,
+        super::Hyper<Dimensions = TCons<Cols, TNil>>,
 {
     /// Consumes this [`Mat`], turning it into an array of its columns.
     ///

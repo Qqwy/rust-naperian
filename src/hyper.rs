@@ -10,7 +10,7 @@ pub use crate::functional::{
 use core::marker::PhantomData;
 
 pub use crate::fin::Fin;
-use crate::functional::tlist::{TCons, TList, TNil, TReverse, TInits, Inits};
+use crate::functional::tlist::{TCons, TList, TNil, TReverse, TInits, Inits, Last, TLast};
 
 use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
@@ -699,26 +699,27 @@ mod tests {
         }
     }
 
-//     #[test]
-//     fn deref_example() {
-//         use crate::fin::fin;
-//         let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
-//         let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
-//         println!("{:?}", mat2x3.rows());
-//         let res = &mat2x3[zero];
-//         println!("{:?}", res);
+    #[test]
+    fn index_example() {
+        let mat2x3 = Mat::<usize, 2, 3>::from_flat(arr![1, 2, 3, 4, 5, 6]);
+        let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
+        println!("rows: {:?}", mat2x3.rows());
+        let res = &mat2x3[zero];
+        println!(" mat[0]: {:?}", res);
 
-//         let t3 = Tensor3::<usize, 2, 3, 4>::from_flat(arr![
-//             1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
-//         ]);
-//         let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
-//         println!("{:?}", t3[zero]);
-//         println!("{:?}", t3[zero][Fin::cnew::<0>()]);
-//         println!("{:?}", t3[zero].rows()[0]);
-//     }
+        println!("cols: {:?}", mat2x3.into_columns());
+
+        let t3 = Tensor3::<usize, 2, 3, 4>::from_flat(arr![
+            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24
+        ]);
+        let zero: Fin<_> = Fin::cnew::<0>(); // Fin::new(3).unwrap();
+        println!("t3[0]: {:?}", t3[zero]);
+        println!("t3[0]: {:?}", t3[zero][Fin::cnew::<0>()]);
+        println!("t3[0][0]: {:?}", t3[zero].rows()[0]);
+    }
 }
 
-use core::ops::{Deref, Index};
+use core::ops::{Deref, Index, DerefMut};
 impl<T> Deref for Scalar<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
@@ -726,35 +727,11 @@ impl<T> Deref for Scalar<T> {
     }
 }
 
-// // Implementation for Vect
-// impl<T, N, N2, Ns> Index<Fin<N>> for Prism<T, Scalar<GenericArray<T, N2>>, N, Ns>
-// where
-//     N: ArrayLength,
-//     N2: ArrayLength,
-// {
-//     type Output = T;
-//     fn index(&self, index: Fin<N>) -> &Self::Output {
-//         &self.0 .0[index.val()]
-//     }
-// }
-
-// // Implementation for rank-2 or higher Tensors
-// // TODO Fix this horrible code. It does not work correctly for rank 3+ tensors.
-// impl<T, Tts, N, N2, Ns, Ns2, Dims> Index<Fin<N2>>
-//     for Prism<T, Prism<GenericArray<T, N>, Tts, N2, Ns2>, N, Ns>
-// where
-//     N: ArrayLength,
-//     N2: ArrayLength,
-//     Tts: Container,
-//     Self: Hyper<Dimensions = Dims>,
-// {
-//     type Output = Prism<T, Tts::Containing<Array<T, N>>, N, Ns2>;
-//     fn index(&self, index: Fin<N2>) -> &Self::Output {
-//         let arr: &Array<Prism<T, Tts::Containing<Array<T, Last<Dims>>>, N, Ns2>, N2> =
-//             unsafe { core::mem::transmute(&self.0) };
-//         &arr[index.val()]
-//     }
-// }
+impl<T> DerefMut for Scalar<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 /// Helper trait to modify the inner dimensions of a Hyper
 pub trait WithDimensions<Dims: TList> {
@@ -789,6 +766,25 @@ impl<T, Ts, N, Ns> Slice for Prism<T, Ts, N, Ns>
     type Output = <<Ts as WithDimensions<Inits<TCons<N, Ns>>>>::Output as Container>::Containing<T>;
 }
 
-static_assertions::assert_type_eq_all!(Scalar<usize>, <Vect<usize, 3> as Slice>::Output);
-static_assertions::assert_type_eq_all!(Vect<usize, 3>, <Mat<usize, 2, 3> as Slice>::Output);
-static_assertions::assert_type_eq_all!(Mat<usize, 4, 5>, <Tensor3<usize, 3, 4, 5> as Slice>::Output);
+#[cfg(test)]
+pub mod slice_tests {
+    use super::*;
+    static_assertions::assert_type_eq_all!(Scalar<usize>, <Vect<usize, 3> as Slice>::Output);
+    static_assertions::assert_type_eq_all!(Vect<usize, 3>, <Mat<usize, 2, 3> as Slice>::Output);
+    static_assertions::assert_type_eq_all!(Mat<usize, 4, 5>, <Tensor3<usize, 3, 4, 5> as Slice>::Output);
+}
+
+impl<T, Ts, N, Ns> Index<Fin<N>> for Prism<T, Ts, N, Ns>
+    where
+    Self: Slice,
+    N: Unsigned,
+    Ns: TList,
+    TCons<N, Ns>: TLast,
+    Last<TCons<N, Ns>>: ArrayLength + NonZero,
+{
+    type Output = <Self as Slice>::Output;
+    fn index(&self, index: Fin<N>) -> &Self::Output {
+        let arr: &Array<Self::Output, Last<TCons<N, Ns>>> = unsafe { core::mem::transmute(&self.0) };
+        &arr[index.val()]
+    }
+}

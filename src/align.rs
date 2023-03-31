@@ -2,8 +2,8 @@
 
 use super::{Hyper, Prism, Scalar};
 use crate::common::Array;
+use crate::functional::hlist::{HCons, HList};
 use core::marker::PhantomData;
-use frunk::hlist::{HCons, HList};
 use generic_array::sequence::Lengthen;
 use generic_array::ArrayLength;
 use typenum::NonZero;

@@ -10,13 +10,13 @@ pub use crate::functional::{
 use core::marker::PhantomData;
 
 pub use crate::fin::Fin;
+use crate::functional::hlist::{HCons, HList, HNil};
 
 use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
 use typenum::consts::*;
 use typenum::operator_aliases::{Add1, Prod, Sub1};
 
-use frunk::hlist::{HCons, HList, HNil};
 use typenum::{NonZero, Unsigned};
 
 /// A Scalar, representing a single element of type T.

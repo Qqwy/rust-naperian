@@ -1,5 +1,6 @@
 mod array;
 pub mod pair;
+pub mod hlist;
 
 #[cfg(alloc)]
 extern crate alloc;

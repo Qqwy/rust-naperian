@@ -370,3 +370,10 @@ pub fn innerprod_orig(v123: Array<usize, U10>, v456: GenericArray<usize, U10>) -
 //     let vec = aliases::Vect::from([1, 2, 3, 4]);
 //     let res = mat * vec; // <- Compile error!
 // }
+
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct U0(typenum::U0);
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct U1(typenum::U1);

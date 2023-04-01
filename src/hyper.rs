@@ -14,7 +14,7 @@ use crate::functional::tlist::{TCons, TList, TNil, TReverse, TInits, Inits, Last
 
 use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};
-use typenum::consts::*;
+use typenum::{consts::*, IsLess};
 use typenum::operator_aliases::{Add1, Prod, Sub1};
 
 use typenum::{NonZero, Unsigned};
@@ -787,4 +787,60 @@ impl<T, Ts, N, Ns> Index<Fin<N>> for Prism<T, Ts, N, Ns>
         let arr: &Array<Self::Output, Last<TCons<N, Ns>>> = unsafe { core::mem::transmute(&self.0) };
         &arr[index.val()]
     }
+}
+
+impl<T, Ts, N, Ns, X> Index<X> for Prism<T, Ts, N, Ns>
+    where
+    X: typenum::ToUInt,
+    <X as typenum::ToUInt>::Output: Unsigned,
+    <X as typenum::ToUInt>::Output: IsLess<N, Output = B1>,
+    Self: Slice,
+    N: Unsigned,
+    Ns: TList,
+TCons<N, Ns>: TLast,
+Last<TCons<N, Ns>>: ArrayLength + NonZero,
+{
+    type Output = <Self as Slice>::Output;
+    fn index(&self, _index: X) -> &Self::Output {
+        let arr: &Array<Self::Output, Last<TCons<N, Ns>>> = unsafe { core::mem::transmute(&self.0) };
+        &arr[<X as typenum::ToUInt>::Output::USIZE]
+    }
+}
+
+#[cfg(test)]
+pub mod example {
+    extern crate std;
+    use std::println;
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct U0;
+
+impl typenum::ToUInt for U0 {
+    type Output = typenum::U0;
+}
+
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct U1;
+
+#[repr(transparent)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct U2;
+
+impl typenum::ToUInt for U1 {
+    type Output = typenum::U1;
+}
+
+impl typenum::ToUInt for U2 {
+    type Output = typenum::U2;
+}
+
+    #[test]
+fn exmpl() {
+    use super::*;
+    use typenum::consts::*;
+    let mat2x3 = Mat::<usize, 2, 2>::from_flat(arr![1, 2, 3, 4]);
+    let thing = &mat2x3[U2];
+    println!("{:?}", thing);
+}
 }

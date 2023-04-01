@@ -2,6 +2,8 @@ use core::{marker::PhantomData, fmt::Debug, ops::Add, hash::Hash};
 use generic_array::{ArrayLength, sequence::Lengthen};
 use typenum::{B1, Add1};
 
+use super::{Liftable, Lowerable};
+use super::scalar::Scalar;
 use crate::{functional::tlist::{TList, TCons, TNil, First, Rest, TRest, TFirst}, common::Array};
 
 
@@ -117,3 +119,40 @@ impl<D: ArrayLength, Ds: TShapeOf> NonEmptyDims for TCons<D, Ds>
     Add1<Ds::Rank>: ArrayLength + Add<B1>,
     Array<usize, Ds::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ds::Rank>>>,
 {}
+
+impl<T, N, Ns> Liftable for Prism<Array<T, N>, Ns>
+where
+    N: ArrayLength,
+Add1<Ns::Rank>: ArrayLength + Add<B1>,
+Array<usize, Ns::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ns::Rank>>>,
+// Ns: TShapeOf<Output<Array<T, N>> = Array<ShapeOf<T, Ns>, N>>,
+    Ns: NonEmptyDims,
+TCons<N, Ns>: TShapeOf<Output<T> = ShapeOf<Array<T, N>, Ns>>,
+
+{
+    type Lifted = Prism<T, TCons<N, Ns>>;
+    fn lift(self) -> Self::Lifted {
+        Prism(self.0, PhantomData)
+    }
+}
+
+
+impl<T, N: ArrayLength> Lowerable for Prism<T, TCons<N, TNil>>
+{
+    type Lowered = Scalar<Array<T, N>>;
+    fn lower(self) -> Scalar<Array<T, N>> {
+        Scalar(self.0)
+    }
+}
+
+
+impl<T, N: ArrayLength, Ns: NonEmptyDims> Lowerable for Prism<T, TCons<N, Ns>>
+    where
+    Add1<Ns::Rank>: ArrayLength + Add<B1>,
+    Array<usize, Ns::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ns::Rank>>>,
+{
+    type Lowered = Prism<Array<T, N>, Ns>;
+    fn lower(self) -> Prism<Array<T, N>, Ns> {
+        Prism(self.0, PhantomData)
+    }
+}

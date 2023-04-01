@@ -26,55 +26,17 @@ pub trait Liftable {
     fn lift(self) -> Self::Lifted;
 }
 
-impl<T, N> Liftable for Scalar<Array<T, N>>
-where
-    N: ArrayLength + NonZero,
-{
-    type Lifted = Prism<T, TList![N]>;
-    fn lift(self) -> Self::Lifted {
-        Prism(self.0, PhantomData)
-    }
+pub trait Lowerable {
+    type Lowered;
+    fn lower(self) -> Self::Lowered;
 }
 
-impl<T, N, Ns> Liftable for Prism<Array<T, N>, Ns>
-where
-    N: ArrayLength,
-    Add1<Ns::Rank>: ArrayLength + Add<B1>,
-    Array<usize, Ns::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ns::Rank>>>,
-    // Ns: TShapeOf<Output<Array<T, N>> = Array<ShapeOf<T, Ns>, N>>,
-    Ns: NonEmptyDims,
-    TCons<N, Ns>: TShapeOf<Output<T> = ShapeOf<Array<T, N>, Ns>>,
-
-{
-    type Lifted = Prism<T, TCons<N, Ns>>;
-    fn lift(self) -> Self::Lifted {
-        Prism(self.0, PhantomData)
-    }
-}
-
-impl<T, N: ArrayLength> Prism<T, TList![N]>
-{
-    pub fn lower(self) -> Scalar<Array<T, N>> {
-        Scalar(self.0)
-    }
-}
-
-impl<T, D: ArrayLength, Ds: NonEmptyDims> Prism<T, TCons<D, Ds>>
-    where
-    TCons<D, Ds>: NonEmptyDims,
-    <TCons<D, Ds> as TShapeOf>::Rank: ArrayLength + Add<B1>,
-    TCons<D, Ds>: TShapeOf<Output<T> = ShapeOf<Array<T, D>, Ds>>,
-{
-    pub fn lower(self) -> Prism<Array<T, D>, Ds> {
-        Prism(self.0, PhantomData)
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use typenum::{U3, U2};
     extern crate std;
-    use std::println;
+    use std::{println, dbg};
 
     use super::*;
     #[test]
@@ -89,6 +51,11 @@ mod tests {
         println!("{:?}", core::any::type_name::<Foo>());
         let mat = vect.lift();
         println!("{:?}", &mat);
+        println!("{:?}", &crate::helper::type_name_of_val(&mat));
+        let vect2 = mat.lower();
+        println!("{:?}", &vect2);
+        let scalar2 = vect2.lower();
+        println!("{:?}", &scalar2);
     }
 }
 

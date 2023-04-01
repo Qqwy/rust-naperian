@@ -20,7 +20,7 @@ impl<T> core::fmt::Debug for TypeName<T> {
 }
 
 #[cfg(not(feature = "alloc"))]
-pub(crate) fn simplified_typename<T>() -> &'static str {
+pub(crate) fn simplified_typename<T: ?Sized>() -> &'static str {
     core::any::type_name::<T>()
 }
 
@@ -28,7 +28,19 @@ pub(crate) fn simplified_typename<T>() -> &'static str {
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-pub(crate) fn simplified_typename<T>() -> alloc::string::String {
+pub(crate) fn simplified_typename<T: ?Sized>() -> alloc::string::String {
     extern crate tynm;
     tynm::type_name::<T>()
+}
+
+
+#[cfg(feature = "alloc")]
+pub fn type_name_of_val<T: ?Sized>(_val: &T) -> alloc::string::String {
+    simplified_typename::<T>()
+}
+
+
+#[cfg(not(feature = "alloc"))]
+pub fn type_name_of_val<T: ?Sized>(_val: &T) -> &'static str {
+    simplified_typename::<T>()
 }

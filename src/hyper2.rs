@@ -1,16 +1,16 @@
+pub mod shape_of;
 pub mod scalar;
 pub mod prism;
 
-use core::{marker::PhantomData, ops::Add};
-
-use generic_array::{ArrayLength, sequence::Lengthen};
+use shape_of::{NonEmptyDims, ShapeOf};
 use scalar::Scalar;
-use prism::{Prism, NonEmptyDims, ShapeOf};
-use typenum::{NonZero, B1, Add1};
+use prism::{Prism};
 
 use crate::{common::Array, functional::tlist::{TList, TCons, Rest, Reverse, TReverse, TConcat}};
 
-use self::prism::TShapeOf;
+use core::{marker::PhantomData, ops::Add};
+use generic_array::{ArrayLength, sequence::Lengthen};
+use typenum::{NonZero, B1, Add1};
 
 
 pub trait Liftable {

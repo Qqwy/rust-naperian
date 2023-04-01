@@ -32,6 +32,26 @@ impl<H, T: TList> TList for TCons<H, T> {}
 
 #[macro_export]
 // Implementation based on the frunk crate's HList! macro.
+
+/// Shorthand macro to construct TList types.
+///
+/// This is usually much more readable than writing out the nesting of
+/// [TCons] and [TNil] by hand.
+///
+/// ```rust
+/// use naperian::functional::tlist::*;
+///
+/// use static_assertions::assert_type_eq_all as type_eq;
+/// use typenum::consts::{U1, U2, U3, U4, U42};
+///
+/// type_eq!(TList![], TNil);
+/// type_eq!(TList![U42], TCons<U42, TNil>);
+/// type_eq!(TList![U1, U2, U3], TCons<U1, TCons<U2, TCons<U3, TNil>>>);
+///
+/// // You can also use `...Rest` for the last argument:
+/// type Rest = TList![U3, U4];
+/// type_eq!(TList![U1, U2, ...Rest], TCons<U1, TCons<U2, Rest>>);
+/// ```
 macro_rules! TList {
     () => { $crate::functional::tlist::TNil };
     (...$Rest:ty) => { $Rest };

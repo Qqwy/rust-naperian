@@ -82,6 +82,29 @@ where
     }
 }
 
+/// type-level 'function' turning a [`trait@TList`] of `N` dimensions into the correctly-shaped N-dimensional array:
+///
+/// ```rust
+/// use naperian::hyper2::prism::ShapeOf;
+///
+/// use naperian::common::Array;
+/// use naperian::functional::tlist::*;
+/// use typenum::consts::{U1, U2, U3, U4, U5};
+/// use static_assertions::assert_type_eq_all as type_eq;
+///
+/// // 0 dimensions: single value
+/// type_eq!(ShapeOf<i32, TList![]>, i32);
+///
+/// // 1 dimensions: one-dimensional array
+/// type_eq!(ShapeOf<u64, TList![U3]>, Array<u64, U3>);
+///
+/// // 2 dimensions: two-dimensional array
+/// type_eq!(ShapeOf<u64, TList![U2, U4]>, Array<Array<u64, U2>, U4>);
+///
+/// // 3 dimensions:
+/// type_eq!(ShapeOf<i8, TList![U2, U4, U5]>, Array<Array<Array<i8, U2>, U4>, U5>);
+/// // etc.
+/// ```
 pub type ShapeOf<T, Dims> = <Dims as TShapeOf>::Output<T>;
 pub trait TShapeOf: TList {
     type Output<T>;

@@ -80,6 +80,7 @@ extern crate std;
 #[cfg(test)]
 use std::println;
 
+mod helper;
 pub mod aliases;
 pub mod align;
 pub mod common;

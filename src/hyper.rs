@@ -840,7 +840,7 @@ fn exmpl() {
     use super::*;
     use typenum::consts::*;
     let mat2x3 = Mat::<usize, 2, 2>::from_flat(arr![1, 2, 3, 4]);
-    let thing = &mat2x3[U2];
+    let thing = &mat2x3[U1];
     println!("{:?}", thing);
 }
 }

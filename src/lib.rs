@@ -88,6 +88,7 @@ pub mod const_aliases;
 pub mod fin;
 pub mod functional;
 pub mod hyper;
+pub mod hyper2;
 pub mod paper;
 
 use common::Array;

@@ -2,14 +2,14 @@ use core::{marker::PhantomData, fmt::Debug, ops::Add, hash::Hash};
 use generic_array::{ArrayLength, sequence::Lengthen};
 use typenum::{B1, Add1};
 
-use super::{Liftable, Lowerable};
-use super::scalar::Scalar;
+// use super::{Liftable, Lowerable};
+// use super::scalar::Scalar;
 use crate::{functional::tlist::{TList, TCons, TNil, First, Rest, TRest, TFirst}, common::Array};
 
 /// type-level 'function' turning a [`trait@TList`] of `N` dimensions into the correctly-shaped N-dimensional array:
 ///
 /// ```rust
-/// use naperian::hyper2::prism::ShapeOf;
+/// use naperian::hyper2::shape_of::ShapeOf;
 ///
 /// use naperian::common::Array;
 /// use naperian::functional::tlist::*;
@@ -56,13 +56,13 @@ impl<D: ArrayLength, Ds: TShapeOf> TShapeOf for TCons<D, Ds>
     }
 }
 
-pub trait NonEmptyDims
-where
-    Self: TShapeOf + TFirst + TRest,
-{}
+// pub trait NonEmptyDims
+// where
+//     Self: TShapeOf + TFirst + TRest,
+// {}
 
-impl<D: ArrayLength, Ds: TShapeOf> NonEmptyDims for TCons<D, Ds>
-    where
-    Add1<Ds::Rank>: ArrayLength + Add<B1>,
-    Array<usize, Ds::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ds::Rank>>>,
-{}
+// impl<D: ArrayLength, Ds: TShapeOf> NonEmptyDims for TCons<D, Ds>
+//     where
+//     Add1<Ds::Rank>: ArrayLength + Add<B1>,
+//     Array<usize, Ds::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ds::Rank>>>,
+// {}

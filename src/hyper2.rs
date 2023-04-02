@@ -1,10 +1,10 @@
 pub mod shape_of;
-pub mod scalar;
-pub mod prism;
+// pub mod scalar;
+pub mod tensor;
 
-use shape_of::{NonEmptyDims, ShapeOf};
-use scalar::Scalar;
-use prism::{Prism};
+use shape_of::{ShapeOf};
+// use scalar::Scalar;
+use tensor::{Tensor, Scalar, Vect, Mat};
 
 use crate::{common::Array, functional::tlist::{TList, TCons, Rest, Reverse, TReverse, TConcat}};
 
@@ -13,23 +13,23 @@ use generic_array::{ArrayLength, sequence::Lengthen};
 use typenum::{NonZero, B1, Add1};
 
 
-pub trait Liftable {
-    type Lifted;
+// pub trait Liftable {
+//     type Lifted;
 
-    /// Turns a lower-dimension Hyper
-    /// whose element type is Array<T, N>
-    /// into a one-dimension-higher Hyper
-    /// whose element type is T,
-    /// with the new dimension being N.
-    ///
-    /// Inverse of [`Prism::lower`].
-    fn lift(self) -> Self::Lifted;
-}
+//     /// Turns a lower-dimension Hyper
+//     /// whose element type is Array<T, N>
+//     /// into a one-dimension-higher Hyper
+//     /// whose element type is T,
+//     /// with the new dimension being N.
+//     ///
+//     /// Inverse of [`Prism::lower`].
+//     fn lift(self) -> Self::Lifted;
+// }
 
-pub trait Lowerable {
-    type Lowered;
-    fn lower(self) -> Self::Lowered;
-}
+// pub trait Lowerable {
+//     type Lowered;
+//     fn lower(self) -> Self::Lowered;
+// }
 
 
 #[cfg(test)]
@@ -43,19 +43,16 @@ mod tests {
     fn lift_and_lower() {
         use generic_array::arr;
         let arrs = arr![arr![1,2,3], arr![4,5,6]];
-        let scalar = Scalar(arrs);
+        let scalar: Scalar<Array<Array<usize, U3>, U2>> = Scalar::new(arrs);
         println!("{:?}", &scalar);
-        let vect = scalar.lift();
+        let vect: Vect<Array<usize, U3>, U2> = scalar.lift();
         println!("{:?}", &vect);
-        type Foo = ShapeOf<usize, TList![U3, U2]>;
-        println!("{:?}", core::any::type_name::<Foo>());
-        let mat = vect.lift();
-        println!("{:?}", &mat);
-        println!("{:?}", &crate::helper::type_name_of_val(&mat));
-        let vect2 = mat.lower();
+        let mattie: Mat<usize, U2, U3> = vect.lift();
+        println!("{:?}", &mattie);
+        println!("{:?}", &crate::helper::type_name_of_val(&mattie));
+        let vect2 = mattie.lower();
         println!("{:?}", &vect2);
         let scalar2 = vect2.lower();
         println!("{:?}", &scalar2);
     }
 }
-

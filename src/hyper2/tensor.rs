@@ -238,18 +238,40 @@ where
     DimsAligned: TShapeOf,
 {
     type Output<U> = Tensor<U, DimsAligned>;
-    fn map2<U>(self, bs: Tensor<R, Dims2>, fun: impl FnMut(<Self as Container>::Elem, R) -> U) -> Self::Output<U> {
-        let (self_aligned, bs_aligned) = align2(self, bs);
-        let self_arr = self_aligned.into_flat();
-        let bs_arr = bs_aligned.into_flat();
-        let us_arr = self_arr.zip(bs_arr, fun);
-        Tensor::from_flat(us_arr)
+    fn map2<U>(self, bs: Tensor<R, Dims2>, mut fun: impl FnMut(<Self as Container>::Elem, R) -> U) -> Self::Output<U> {
+        use typenum::Unsigned;
+        // Decide implementation based on the amount of elements in the aligned tensors.
+        // TODO benchmark to:
+        // - Find proper cutoff point
+        // - Double-check how smart the compiler actually is for this kind of stuff.
+        // - The kind of element type (Copy vs non-Copy) might also greatly matter!
+        if DimsAligned::HSize::USIZE < 256 {
+            // If small, create both aligned tensors in full and operate on them as arrays directly.
+            // For small arrays, this allows the compiler extra optimizations.
+            // For large arrays, this would grow code size and the amount of memcpys
+            let (self_aligned, bs_aligned) = align2(self, bs);
+            let self_arr = self_aligned.into_flat();
+            let bs_arr = bs_aligned.into_flat();
+            let us_arr = self_arr.zip(bs_arr, fun);
+            Tensor::from_flat(us_arr)
+        } else {
+            // If large, iterate over the two arrays lazily, repeating the elements in the smaller one.
+            // Compiler can optimize this less (which is visible for small arrays)
+            // But for large arrays it means we can skip building
+            // the intermediate large array only to immediately consume it afterwards.
+            let self_arr = self.into_flat();
+            let bs_arr = bs.into_flat();
+            let self_iter = self_arr.into_iter().cycle().take(DimsAligned::HSize::USIZE);
+            let bs_iter = bs_arr.into_iter().cycle().take(DimsAligned::HSize::USIZE);
+            let us_arr = self_iter.zip(bs_iter).map(|(l, r)| fun(l, r)).collect();
+            Tensor::from_flat(us_arr)
+        }
     }
 }
 
 #[cfg(test)]
 mod test {
-    use typenum::{U2, U3};
+    use typenum::{U2, U3, U40};
 
     use crate::helper::type_name_of_val;
 
@@ -257,8 +279,9 @@ mod test {
     #[test]
     fn map2() {
         use generic_array::arr;
-        let left: Vect<usize, _> = Vect::from_flat(arr![10, 20]);
-        let right: Tensor3<usize, U2, U2, U2> = Tensor3::from_flat(arr![1,2,3,4,5,6,7, 8]);
+        let left: Scalar<_> = Scalar::from_flat(arr![10]);
+        // let left: Vect<usize, _> = Vect::from_flat(arr![10, 20]);
+        let right: Mat<usize, U40, U2> = Mat::from_flat(arr![1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10, 1,2,3,4,5,6,7,8,9,10]);
         let added = left.map2(right, Add::add);
         std::println!("{:?}", &added);
         std::println!("{:?}", &type_name_of_val(&added));
@@ -288,3 +311,9 @@ mod test {
 //         todo!()
 //     }
 // }
+
+use typenum::{U4, U16384};
+    extern crate alloc;
+    pub fn mulexample(mat: Mat<alloc::string::String, U16384, U4>, vec: Vect<alloc::string::String, U4>) -> Mat<alloc::string::String, U16384, U4> {
+    mat.map2(vec, |x, y| x + &y)
+}

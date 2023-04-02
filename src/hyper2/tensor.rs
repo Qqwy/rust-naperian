@@ -1,10 +1,10 @@
 use core::{marker::PhantomData, fmt::Debug, ops::{Add, Mul}, hash::Hash};
-use generic_array::{ArrayLength, sequence::Lengthen};
-use typenum::{B1, Add1, Prod};
+use generic_array::{ArrayLength, sequence::{Lengthen, GenericSequence}, functional::FunctionalSequence};
+use typenum::{B1, Add1, Prod, U1};
 
-use crate::functional::{Container, New, NewFrom, Mappable};
+use crate::{functional::{Container, New, NewFrom, Mappable, Mappable2}, align::ShapeMatched};
 // use super::{Liftable, Lowerable};
-use super::shape_of::{ShapeOf, TShapeOf};
+use super::shape_of::{ShapeOf, TShapeOf, MatchingDimensions, Alignable, align2};
 // use super::scalar::Scalar;
 use crate::{functional::tlist::{TList, TCons, TNil, First, Rest, TRest, TFirst}, common::Array};
 
@@ -154,6 +154,16 @@ where
     }
 }
 
+impl<T, A> Mappable<A> for Tensor<T, TNil>
+{
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        Tensor(fun(&self.0), PhantomData)
+    }
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        Tensor(fun(self.0), PhantomData)
+    }
+}
+
 impl<T, D, Ds, A> Mappable<A> for Tensor<T, TCons<D, Ds>>
     where
     TCons<D, Ds>: TShapeOf,
@@ -167,3 +177,114 @@ ShapeOf<T, TCons<D, Ds>>: Mappable<A> + Container<Elem = T, Containing<A> = Shap
         Tensor(self.0.map_by_value(&mut fun), PhantomData)
     }
 }
+
+// trait AlignedMappable2: Container {
+//     type Output<U>;
+//     fn map2<R, U>(self, rhs: Self::Containing<R>, fun: impl FnMut(Self::Elem, R) -> U) -> Self::Output<U>;
+// }
+
+// impl<T> AlignedMappable2 for Tensor<T, TNil>
+// {
+//     type Output<U> = Tensor<U, TNil>;
+//     fn map2<R, U>(self, rhs: Tensor<R, TNil>, mut fun: impl FnMut(Self::Elem, R) -> U) -> Self::Output<U>
+//     {
+//         Tensor(fun(self.0, rhs.0), PhantomData)
+//     }
+// }
+
+// impl<T, D, Ds, R> AlignedMappable2 for Tensor<T, TCons<D, Ds>>
+// where
+//     D: ArrayLength + Mul<Ds::HSize>,
+//     Ds: TShapeOf,
+//     ShapeOf<Array<T, D>, Ds>: FunctionalSequence<Array<T, D>>,
+//     Add1<Ds::Rank>: ArrayLength + Add<B1>,
+//     Prod<D, Ds::HSize>: ArrayLength,
+//     Array<usize, Ds::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ds::Rank>>>,
+// {
+//     type Output<U> = Tensor<U, TCons<D, Ds>>;
+//     fn map2<U>(self, rhs: Self::Containing<R>, fun: impl FnMut(Self::Elem, R) -> U) -> Self::Output<U> {
+//         Tensor(self.0.zip(rhs.0, fun), PhantomData)
+//     }
+// }
+
+impl<T, Dims> Tensor<T, Dims>
+where
+    Dims: TShapeOf,
+{
+    pub fn into_flat(self) -> Array<T, Dims::HSize> {
+        // SAFETY: memory representation is guaranteed to match
+        unsafe {core::mem::transmute_copy(&self)}
+    }
+
+    pub fn from_flat(array: Array<T, Dims::HSize>) -> Self {
+        // SAFETY: memory representation is guaranteed to match
+        unsafe {core::mem::transmute_copy(&array)}
+    }
+}
+
+pub trait Mappable2b<R, Rhs = <Self as Container>::Containing<R>>
+where
+    Self: Container,
+    Rhs: Container<Elem = R>,
+{
+    type Output<U>: Container<Elem = U>;
+    fn map2<U>(self, rhs: Rhs, fun: impl FnMut(Self::Elem, R) -> U) -> Self::Output<U>;
+}
+
+impl<L: Clone, R: Clone, Dims, Dims2, DimsAligned> Mappable2b<R, Tensor<R, Dims2>> for Tensor<L, Dims>
+where
+    Dims: TShapeOf + MatchingDimensions<Dims2, Output = DimsAligned> + Alignable<DimsAligned>,
+    Dims2: TShapeOf + MatchingDimensions<Dims, Output = DimsAligned> + Alignable<DimsAligned>,
+    DimsAligned: TShapeOf,
+{
+    type Output<U> = Tensor<U, DimsAligned>;
+    fn map2<U>(self, bs: Tensor<R, Dims2>, fun: impl FnMut(<Self as Container>::Elem, R) -> U) -> Self::Output<U> {
+        let (self_aligned, bs_aligned) = align2(self, bs);
+        let self_arr = self_aligned.into_flat();
+        let bs_arr = bs_aligned.into_flat();
+        let us_arr = self_arr.zip(bs_arr, fun);
+        Tensor::from_flat(us_arr)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use typenum::{U2, U3};
+
+    use crate::helper::type_name_of_val;
+
+    use super::*;
+    #[test]
+    fn map2() {
+        use generic_array::arr;
+        let left: Vect<usize, _> = Vect::from_flat(arr![10, 20]);
+        let right: Tensor3<usize, U2, U2, U2> = Tensor3::from_flat(arr![1,2,3,4,5,6,7, 8]);
+        let added = left.map2(right, Add::add);
+        std::println!("{:?}", &added);
+        std::println!("{:?}", &type_name_of_val(&added));
+    }
+}
+
+// impl<T, D, Ds, A, U> Mappable2<A, U> for Tensor<T, TCons<D, Ds>>
+//     where
+//     TCons<D, Ds>: TShapeOf,
+//     ShapeOf<T, TCons<D, Ds>>: Mappable2<A, U> + Container<Elem = T> + Container<Containing<A> = ShapeOf<A, TCons<D, Ds>>> + Container<Containing<U> = ShapeOf<U, TCons<D, Ds>>>,
+//     Ds: TList,
+// {
+//     fn map2_by_value<B>(
+//         self,
+//         rhs: Self::Containing<B>,
+//         mut fun: impl FnMut(A, B) -> U,
+//     ) -> Self::Containing<U> {
+//         let new_arr = self.0.map2_by_value(rhs.0, &mut fun);
+//         Tensor(new_arr, PhantomData)
+//     }
+
+//     fn map2<'b, B: 'b>(
+//         &self,
+//         rhs: &'b Self::Containing<B>,
+//         fun: impl FnMut(&A, &'b B) -> U,
+//     ) -> Self::Containing<U> {
+//         todo!()
+//     }
+// }

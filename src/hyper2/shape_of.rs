@@ -157,7 +157,7 @@ where
     type Output = TCons<D, <Ds as MatchingDimensions<Ds2>>::Output>;
 }
 
-pub fn align2<T: Clone, Left, Right, LeftAligned, RightAligned>(left: Tensor<T, Left>, right: Tensor<T, Right>) -> (Tensor<T, LeftAligned>, Tensor<T, RightAligned>)
+pub fn align2<T: Clone, T2: Clone, Left, Right, LeftAligned, RightAligned>(left: Tensor<T, Left>, right: Tensor<T2, Right>) -> (Tensor<T, LeftAligned>, Tensor<T2, RightAligned>)
     where
     Left: MatchingDimensions<Right, Output = LeftAligned> + Alignable<LeftAligned>,
     Right: MatchingDimensions<Left, Output = RightAligned> + Alignable<RightAligned>,
@@ -180,7 +180,7 @@ mod tests {
     fn align() {
         // let left: Vect<usize, U3> = Scalar::new(arr![1,2,3]).lift();
         let left: Mat<usize, _, _> = Scalar::new(arr![arr![1,2,3], arr![4,5,6]]).lift().lift();
-        let right: Vect<usize, _> = Scalar::new(arr![4,5,6, 7]).lift();
+        let right: Vect<usize, _> = Scalar::new(arr![4,5,6]).lift();
         // let right  = Scalar::new(4);
         let (la, ra) = align2(left, right);
         println!("{:?}", &la);

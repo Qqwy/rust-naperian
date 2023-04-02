@@ -37,6 +37,7 @@ mod tests {
     use typenum::{U3, U2};
     extern crate std;
     use std::{println, dbg};
+    use crate::functional::New;
 
     use super::*;
     #[test]

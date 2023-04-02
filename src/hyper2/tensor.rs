@@ -2,6 +2,7 @@ use core::{marker::PhantomData, fmt::Debug, ops::{Add, Mul}, hash::Hash};
 use generic_array::{ArrayLength, sequence::Lengthen};
 use typenum::{B1, Add1, Prod};
 
+use crate::functional::{Container, New, NewFrom, Mappable};
 // use super::{Liftable, Lowerable};
 use super::shape_of::{ShapeOf, TShapeOf};
 // use super::scalar::Scalar;
@@ -29,12 +30,6 @@ pub type Scalar<T> = Tensor<T, TNil>;
 pub type Vect<T, N> = Tensor<T, TList![N]>;
 pub type Mat<T, R, C> = Tensor<T, TList![C, R]>;
 pub type Tensor3<T, S, R, C> = Tensor<T, TList![C, R, S]>;
-
-impl<T> Scalar<T> {
-    pub fn new(val: T) -> Self {
-        Self(val, PhantomData)
-    }
-}
 
 impl<T: Hash, Dims> Hash for Tensor<T, Dims>
 where
@@ -142,3 +137,33 @@ impl<T, N, Ns> Tensor<T, TCons<N, Ns>>
     }
 }
 
+unsafe impl<T, Dims> Container for Tensor<T, Dims>
+    where
+    Dims: TShapeOf,
+{
+    type Elem = T;
+    type Containing<X> = Tensor<X, Dims>;
+}
+
+impl<T: Clone, Dims> New<T> for Tensor<T, Dims>
+where
+    Dims: TShapeOf,
+{
+    fn new(elem_val: T) -> Self {
+        Tensor(Dims::hreplicate(elem_val), PhantomData)
+    }
+}
+
+impl<T, D, Ds, A> Mappable<A> for Tensor<T, TCons<D, Ds>>
+    where
+    TCons<D, Ds>: TShapeOf,
+ShapeOf<T, TCons<D, Ds>>: Mappable<A> + Container<Elem = T, Containing<A> = ShapeOf<A, TCons<D, Ds>>>,
+    Ds: TList,
+{
+    fn map(&self, mut fun: impl FnMut(&Self::Elem) -> A) -> Self::Containing<A> {
+        Tensor(self.0.map(&mut fun), PhantomData)
+    }
+    fn map_by_value(self, mut fun: impl FnMut(Self::Elem) -> A) -> Self::Containing<A> {
+        Tensor(self.0.map_by_value(&mut fun), PhantomData)
+    }
+}

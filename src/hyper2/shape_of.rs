@@ -1,10 +1,13 @@
+use core::ops::Mul;
 use core::{marker::PhantomData, fmt::Debug, ops::Add, hash::Hash};
 use generic_array::{ArrayLength, sequence::Lengthen};
-use typenum::{B1, Add1};
+use generic_array::sequence::GenericSequence;
+use typenum::{B1, Add1, Prod};
 
 // use super::{Liftable, Lowerable};
 // use super::scalar::Scalar;
 use crate::{functional::tlist::{TList, TCons, TNil, First, Rest, TRest, TFirst}, common::Array};
+use crate::functional::New;
 
 /// type-level 'function' turning a [`trait@TList`] of `N` dimensions into the correctly-shaped N-dimensional array:
 ///
@@ -32,15 +35,24 @@ use crate::{functional::tlist::{TList, TCons, TNil, First, Rest, TRest, TFirst},
 pub type ShapeOf<T, Dims> = <Dims as TShapeOf>::Output<T>;
 pub trait TShapeOf: TList {
     type Output<T>;
+
     type Rank: ArrayLength + Add<B1>;
+    type HSize: ArrayLength;
     fn dimensions() -> Array<usize, Self::Rank>;
+
+    fn hreplicate<T: Clone>(elem: T) -> Self::Output<T>;
 }
 
 impl TShapeOf for TNil {
     type Rank = typenum::U0;
+    type HSize = typenum::U1;
     type Output<T> = T;
     fn dimensions() -> Array<usize, Self::Rank> {
         Default::default()
+    }
+
+    fn hreplicate<T: Clone>(elem: T) -> Self::Output<T> {
+        elem
     }
 }
 
@@ -48,11 +60,18 @@ impl<D: ArrayLength, Ds: TShapeOf> TShapeOf for TCons<D, Ds>
     where
     Add1<Ds::Rank>: ArrayLength + Add<B1>,
     Array<usize, Ds::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ds::Rank>>>,
+    D: Mul<Ds::HSize>,
+    Prod<D, Ds::HSize>: ArrayLength,
 {
     type Output<T> = ShapeOf<Array<T, D>, Ds>;
     type Rank = Add1<Ds::Rank>;
+    type HSize = Prod<D, Ds::HSize>;
     fn dimensions() -> Array<usize, Self::Rank> {
         Ds::dimensions().append(D::USIZE)
+    }
+
+    fn hreplicate<T: Clone>(elem: T) -> Self::Output<T> {
+        Ds::hreplicate(New::new(elem))
     }
 }
 

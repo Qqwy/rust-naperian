@@ -1,6 +1,6 @@
-use core::{marker::PhantomData, fmt::Debug, ops::Add, hash::Hash};
+use core::{marker::PhantomData, fmt::Debug, ops::{Add, Mul}, hash::Hash};
 use generic_array::{ArrayLength, sequence::Lengthen};
-use typenum::{B1, Add1};
+use typenum::{B1, Add1, Prod};
 
 // use super::{Liftable, Lowerable};
 use super::shape_of::{ShapeOf, TShapeOf};
@@ -130,9 +130,10 @@ where
 
 impl<T, N, Ns> Tensor<T, TCons<N, Ns>>
     where
-    N: ArrayLength,
+    N: ArrayLength + Mul<Ns::HSize>,
     Ns: TShapeOf,
     Add1<Ns::Rank>: ArrayLength + Add<B1>,
+    Prod<N, Ns::HSize>: ArrayLength,
     Array<usize, Ns::Rank>: Lengthen<usize, Longer = Array<usize, Add1<Ns::Rank>>>,
 {
     /// Lowers a K-dimensional `Tensor<T, TList![N, ...Ns]>` into a (K-1)-dimensional `Tensor<Array<T, N>, Ns>`
@@ -140,3 +141,4 @@ impl<T, N, Ns> Tensor<T, TCons<N, Ns>>
         Tensor(self.0, PhantomData)
     }
 }
+

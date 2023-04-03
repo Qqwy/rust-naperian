@@ -17,7 +17,10 @@ use core::ops::Add;
 
 pub use crate::TList;
 
-pub trait TList {}
+pub trait TList {
+    type Concat<Rhs: TList>: TList;
+    type Reverse: TList;
+}
 
 /// The empty TList.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -27,8 +30,14 @@ pub struct TNil;
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct TCons<H, T: TList>(PhantomData<(H, T)>);
 
-impl TList for TNil {}
-impl<H, T: TList> TList for TCons<H, T> {}
+impl TList for TNil {
+    type Concat<Rhs: TList> = Rhs;
+    type Reverse = TNil;
+}
+impl<H, T: TList> TList for TCons<H, T> {
+    type Concat<Rhs: TList> = TCons<H, T::Concat<Rhs>>;
+    type Reverse = Concat<T::Reverse, TCons<H, TNil>>;
+}
 
 #[macro_export]
 // Implementation based on the frunk crate's HList! macro.
@@ -148,42 +157,42 @@ where
 }
 
 /// Type-level 'function' to concatenate two TLists.
-pub type Concat<Lhs, Rhs> = <Lhs as TConcat<Rhs>>::Output;
+pub type Concat<Lhs, Rhs> = <Lhs as TList>::Concat<Rhs>;
 
-pub trait TConcat<Rhs: TList>: TList {
-    type Output: TList;
-}
+// pub trait TConcat<Rhs: TList>: TList {
+//     type Output: TList;
+// }
 
-impl<Rhs: TList> TConcat<Rhs> for TNil {
-    type Output = Rhs;
-}
+// impl<Rhs: TList> TConcat<Rhs> for TNil {
+//     type Output = Rhs;
+// }
 
-impl<H, T, Rhs: TList> TConcat<Rhs> for TCons<H, T>
-where
-    T: TConcat<Rhs>,
-{
-    type Output = TCons<H, Concat<T, Rhs>>;
-}
+// impl<H, T, Rhs: TList> TConcat<Rhs> for TCons<H, T>
+// where
+//     T: TConcat<Rhs>,
+// {
+//     type Output = TCons<H, Concat<T, Rhs>>;
+// }
 
 /// Type-level 'function' to reverse a TList.
-pub type Reverse<List> = <List as TReverse>::Output;
+pub type Reverse<List> = <List as TList>::Reverse;
 
-/// Implementation of [`Reverse`].
-pub trait TReverse {
-    type Output: TList;
-}
+// /// Implementation of [`Reverse`].
+// pub trait TReverse {
+//     type Output: TList;
+// }
 
-impl TReverse for TNil {
-    type Output = TNil;
-}
+// impl TReverse for TNil {
+//     type Output = TNil;
+// }
 
-impl<H, T> TReverse for TCons<H, T>
-where
-    T: TConcat<TCons<H, TNil>> + TReverse,
-    Reverse<T>: TConcat<TCons<H, TNil>>,
-{
-    type Output = Concat<Reverse<T>, TCons<H, TNil>>;
-}
+// impl<H, T> TReverse for TCons<H, T>
+// where
+//     T: TConcat<TCons<H, TNil>> + TReverse,
+//     Reverse<T>: TConcat<TCons<H, TNil>>,
+// {
+//     type Output = Concat<Reverse<T>, TCons<H, TNil>>;
+// }
 
 use typenum::consts::U0;
 use typenum::{Add1, Bit, Unsigned, B0, B1};

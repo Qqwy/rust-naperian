@@ -245,7 +245,8 @@ where
         // - Find proper cutoff point
         // - Double-check how smart the compiler actually is for this kind of stuff.
         // - The kind of element type (Copy vs non-Copy) might also greatly matter!
-        if DimsAligned::HSize::USIZE < 256 {
+        // if DimsAligned::HSize::USIZE < 1024 {
+        if true {
             // If small, create both aligned tensors in full and operate on them as arrays directly.
             // For small arrays, this allows the compiler extra optimizations.
             // For large arrays, this would grow code size and the amount of memcpys
@@ -312,8 +313,11 @@ mod test {
 //     }
 // }
 
-use typenum::{U4, U16384};
-    extern crate alloc;
-    pub fn mulexample(mat: Mat<alloc::string::String, U16384, U4>, vec: Vect<alloc::string::String, U4>) -> Mat<alloc::string::String, U16384, U4> {
+use typenum::consts::*; //{U4, U8, U16384};
+extern crate alloc;
+type Type = alloc::string::String;
+type R = U16; // U16384;
+type C = U16;
+pub fn mulexample(mat: Mat<Type, R, C>, vec: Vect<Type, C>) -> Mat<Type, R, C> {
     mat.map2(vec, |x, y| x + &y)
 }

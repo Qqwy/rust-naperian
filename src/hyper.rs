@@ -10,7 +10,7 @@ pub use crate::functional::{
 use core::marker::PhantomData;
 
 pub use crate::fin::Fin;
-use crate::functional::tlist::{TCons, TList, TNil, TReverse, TInits, Inits, Last, TLast};
+use crate::functional::tlist::{TCons, TList, TNil, TInits, Inits, Last, TLast};
 
 use generic_array::sequence::{Lengthen, Shorten};
 use generic_array::{arr, ArrayLength, GenericArray};

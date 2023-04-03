@@ -6,7 +6,7 @@ use shape_of::{ShapeOf};
 // use scalar::Scalar;
 use tensor::{Tensor, Scalar, Vect, Mat};
 
-use crate::{common::Array, functional::tlist::{TList, TCons, Rest, Reverse, TReverse, TConcat}};
+use crate::{common::Array, functional::tlist::{TList, TCons, Rest, Reverse}};
 
 use core::{marker::PhantomData, ops::Add};
 use generic_array::{ArrayLength, sequence::Lengthen};
